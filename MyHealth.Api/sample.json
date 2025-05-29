@@ -1,0 +1,44 @@
+{
+    "dataframe_split": {
+        "columns": [
+            "id",
+            "Age",
+            "Height",
+            "Weight",
+            "FCVC",
+            "NCP",
+            "CH2O",
+            "FAF",
+            "TUE",
+            "Gender",
+            "family_history_with_overweight",
+            "FAVC",
+            "CAEC",
+            "SMOKE",
+            "SCC",
+            "CALC",
+            "MTRANS"
+        ],
+        "data": [
+            [
+                0,
+                24.44,
+                1.70,
+                81.67,
+                2,
+                2.98,
+                2.76,
+                0,
+                0.98,
+                "Male",
+                "yes",
+                "yes",
+                "Sometimes",
+                "no",
+                "no",
+                "Sometimes",
+                "Public_Transportation"
+            ]
+        ]
+    }
+}

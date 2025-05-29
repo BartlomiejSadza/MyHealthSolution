@@ -1,0 +1,21 @@
+{
+  "Databricks": {
+    "Endpoint": "YOUR_DATABRICKS_ENDPOINT_URL",
+    "Token": "YOUR_DATABRICKS_ACCESS_TOKEN"
+  },
+  "HealthDescriptions": {
+    "Normal_Weight": "Twoja waga jest prawidłowa. Utrzymuj zbilansowaną dietę i aktywność fizyczną.",
+    "Overweight_Level_I": "Nadwaga I stopnia. Zwiększ aktywność 30–45 min, 5×/tydz.",
+    "Overweight_Level_II": "Nadwaga II stopnia. Rozważ konsultację z dietetykiem.",
+    "Obesity_Type_I": "Otyłość I stopnia. Zalecana konsultacja lekarska.",
+    "Obesity_Type_II": "Otyłość II stopnia. Wysokie ryzyko chorób serca – interwencja.",
+    "Obesity_Type_III": "Otyłość III stopnia. Pilna konsultacja lekarska."
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    }
+  },
+  "AllowedHosts": "*"
+} 
