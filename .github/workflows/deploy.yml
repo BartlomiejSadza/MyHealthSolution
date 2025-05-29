@@ -1,0 +1,117 @@
+name: Deploy MyHealth Assistant
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-backend:
+    runs-on: ubuntu-latest
+    name: Test .NET API
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore dependencies
+        run: dotnet restore MyHealth.Api/MyHealth.Api.csproj
+
+      - name: Build
+        run: dotnet build MyHealth.Api/MyHealth.Api.csproj --no-restore
+
+      - name: Test
+        run: dotnet test MyHealth.Api/MyHealth.Api.csproj --no-build --verbosity normal
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    name: Test Next.js Frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: health-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          cd health-frontend
+          npm ci
+
+      - name: Build
+        run: |
+          cd health-frontend
+          npm run build
+
+      - name: Lint
+        run: |
+          cd health-frontend
+          npm run lint
+
+  build-docker:
+    runs-on: ubuntu-latest
+    name: Build Docker Images
+    needs: [test-backend, test-frontend]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./MyHealth.Api
+          file: ./MyHealth.Api/Dockerfile
+          push: false
+          tags: myhealth-api:latest
+
+      - name: Build Frontend Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./health-frontend
+          file: ./health-frontend/Dockerfile
+          push: false
+          tags: myhealth-frontend:latest
+
+  # Uncomment and configure when ready to deploy
+  # deploy-to-azure:
+  #   runs-on: ubuntu-latest
+  #   name: Deploy to Azure
+  #   needs: [build-docker]
+  #   if: github.ref == 'refs/heads/main'
+  #
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #
+  #   - name: Login to Azure
+  #     uses: azure/login@v1
+  #     with:
+  #       creds: ${{ secrets.AZURE_CREDENTIALS }}
+  #
+  #   - name: Deploy API to Azure App Service
+  #     uses: azure/webapps-deploy@v2
+  #     with:
+  #       app-name: 'myhealth-api'
+  #       publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+  #       package: './MyHealth.Api'
+  #
+  #   - name: Deploy Frontend to Azure Static Web Apps
+  #     uses: Azure/static-web-apps-deploy@v1
+  #     with:
+  #       azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+  #       repo_token: ${{ secrets.GITHUB_TOKEN }}
+  #       action: "upload"
+  #       app_location: "/health-frontend"
+  #       output_location: "out"
