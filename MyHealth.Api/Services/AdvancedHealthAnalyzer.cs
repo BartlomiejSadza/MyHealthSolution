@@ -29,18 +29,18 @@ namespace MyHealth.Api.Services
 
         private PersonalProfile BuildPersonalProfile(HealthRequest request)
         {
-            var age = request.DataFrame_Split.Data[0][1]; // Age
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString()); // Age
             var gender = request.DataFrame_Split.Data[0][9].ToString(); // Gender
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]); // Height
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]); // Weight
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString()); // Height
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString()); // Weight
 
             var bmi = weight / (height * height);
-            var ageGroup = GetAgeGroup(Convert.ToInt32(age));
+            var ageGroup = GetAgeGroup(age);
             var bmiCategory = GetBMICategory(bmi);
 
             return new PersonalProfile
             {
-                Age = Convert.ToInt32(age),
+                Age = age,
                 Gender = gender,
                 Height = height,
                 Weight = weight,
@@ -54,9 +54,9 @@ namespace MyHealth.Api.Services
 
         private BMIAnalysis AnalyzeBMI(HealthRequest request)
         {
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]);
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]);
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
             var gender = request.DataFrame_Split.Data[0][9].ToString();
 
             var bmi = weight / (height * height);
@@ -81,9 +81,9 @@ namespace MyHealth.Api.Services
 
         private NutritionalAnalysis AnalyzeNutrition(HealthRequest request)
         {
-            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4]); // Vegetable consumption
-            var ncp = Convert.ToDouble(request.DataFrame_Split.Data[0][5]); // Number of meals
-            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6]); // Water consumption
+            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4].ToString()); // Vegetable consumption
+            var ncp = Convert.ToDouble(request.DataFrame_Split.Data[0][5].ToString()); // Number of meals
+            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6].ToString()); // Water consumption
             var favc = request.DataFrame_Split.Data[0][11].ToString(); // High caloric food
             var caec = request.DataFrame_Split.Data[0][12].ToString(); // Eating between meals
             var calc = request.DataFrame_Split.Data[0][15].ToString(); // Alcohol consumption
@@ -105,8 +105,8 @@ namespace MyHealth.Api.Services
 
         private PhysicalActivityAnalysis AnalyzePhysicalActivity(HealthRequest request)
         {
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]); // Physical activity frequency
-            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8]); // Technology use
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString()); // Physical activity frequency
+            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8].ToString()); // Technology use
             var mtrans = request.DataFrame_Split.Data[0][16].ToString(); // Transportation
 
             var activityLevel = GetActivityLevel(faf);
@@ -130,7 +130,7 @@ namespace MyHealth.Api.Services
             var smoke = request.DataFrame_Split.Data[0][13].ToString();
             var scc = request.DataFrame_Split.Data[0][14].ToString(); // Calorie monitoring
             var familyHistory = request.DataFrame_Split.Data[0][10].ToString();
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
 
             return new LifestyleAnalysis
             {
@@ -209,8 +209,8 @@ namespace MyHealth.Api.Services
             var score = 100; // Zaczynamy od 100 punktów
 
             // Odejmujemy punkty za czynniki ryzyka
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]);
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]);
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
             var bmi = weight / (height * height);
 
             // BMI
@@ -218,7 +218,7 @@ namespace MyHealth.Api.Services
             else if (bmi > 30) score -= 30;
 
             // Aktywność fizyczna
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
             if (faf < 1) score -= 20;
             else if (faf < 2) score -= 10;
 
@@ -235,10 +235,10 @@ namespace MyHealth.Api.Services
             var favc = request.DataFrame_Split.Data[0][11].ToString();
             if (favc == "yes") score -= 10;
 
-            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4]);
+            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4].ToString());
             if (fcvc < 2) score -= 10;
 
-            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6]);
+            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6].ToString());
             if (ch2o < 2) score -= 10;
 
             return Math.Max(0, Math.Min(100, score));
@@ -416,11 +416,11 @@ namespace MyHealth.Api.Services
 
         private int CalculateMetabolicAge(HealthRequest request)
         {
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
             var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]);
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]);
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
             var bmi = weight / (height * height);
 
             var metabolicAge = age;

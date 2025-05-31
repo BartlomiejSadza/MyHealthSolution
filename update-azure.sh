@@ -3,8 +3,10 @@
 # Szybka aktualizacja MyHealth Solution na Azure
 set -e
 
-RESOURCE_GROUP="rg-myhealth"
-REGISTRY_NAME="myhealthregistry"
+# Konfiguracja
+RESOURCE_GROUP="rg-myhealth-fixed"
+REGISTRY_NAME="myhealthfixed1637"
+LOCATION="eastus"
 
 # Kolory dla outputu
 RED='\033[0;31m'
