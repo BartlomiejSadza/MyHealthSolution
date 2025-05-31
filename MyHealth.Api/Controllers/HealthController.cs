@@ -9,16 +9,29 @@ namespace MyHealth.Api.Controllers
     [Route("api/[controller]")]
     public class HealthController : ControllerBase
     {
-        private readonly IHealthService _svc;
-        private readonly AdvancedHealthAnalyzer _analyzer;
-        
-        public HealthController(IHealthService svc, AdvancedHealthAnalyzer analyzer)
+        private readonly IHealthService _healthService;
+
+        public HealthController(IHealthService healthService)
         {
-            _svc = svc;
-            _analyzer = analyzer;
+            _healthService = healthService;
         }
 
-        [HttpGet]
+        // Test automatycznego wdrażania GitHub Actions
+        [HttpPost("assess-advanced")]
+        public async Task<IActionResult> AssessAdvancedHealth([FromBody] HealthRequest request)
+        {
+            try
+            {
+                var result = await _healthService.AssessAdvancedHealthAsync(request);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Błąd podczas zaawansowanej analizy zdrowotnej", details = ex.Message });
+            }
+        }
+
+        [HttpGet("health")]
         public IActionResult Health()
         {
             return Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
@@ -28,7 +41,7 @@ namespace MyHealth.Api.Controllers
         public async Task<ActionResult<HealthResponse>> Assess(
             [FromBody] HealthRequest req)
         {
-            var result = await _svc.AssessAsync(req);
+            var result = await _healthService.AssessAsync(req);
             return Ok(result);
         }
 
@@ -36,31 +49,8 @@ namespace MyHealth.Api.Controllers
         public async Task<ActionResult<HealthResponse>> AssessSimple(
             [FromBody] SimpleHealthRequest req)
         {
-            var result = await _svc.AssessSimpleAsync(req);
+            var result = await _healthService.AssessSimpleAsync(req);
             return Ok(result);
-        }
-
-        [HttpPost("assess-advanced")]
-        public async Task<ActionResult<AdvancedHealthAnalysisResult>> AssessAdvanced(
-            [FromBody] HealthRequest req)
-        {
-            try
-            {
-                // Najpierw pobierz podstawową predykcję
-                var basicResult = await _svc.AssessAsync(req);
-                
-                // Następnie wykonaj zaawansowaną analizę
-                var advancedResult = _analyzer.AnalyzeHealth(req, basicResult.Assessments);
-                
-                return Ok(advancedResult);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { 
-                    error = "Błąd podczas zaawansowanej analizy zdrowotnej", 
-                    details = ex.Message 
-                });
-            }
         }
     }
 }
