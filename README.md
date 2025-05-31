@@ -1,6 +1,6 @@
 # MyHealth Solution 🏥
 
-Aplikacja do oceny stanu zdrowia z wykorzystaniem Machine Learning - kompletne rozwiązanie z frontendem Next.js, API .NET Core i lokalnym modelem ML.
+Aplikacja do oceny stanu zdrowia z wykorzystaniem Machine Learning - kompletne rozwiązanie z frontendem Next.js, API .NET Core i modelem ML.
 
 ## 🚀 Quick Start - Deploy na Azure
 
@@ -11,23 +11,10 @@ Aplikacja do oceny stanu zdrowia z wykorzystaniem Machine Learning - kompletne r
 az login
 
 # Deploy aplikację na Azure Container Apps
-./deploy-azure.sh
+./deploy-azure-fixed.sh
 ```
 
 **Rezultat**: Działająca aplikacja w chmurze za ~15 minut! 🎉
-
-### Aktualizacja po zmianach
-
-```bash
-# Aktualizuj tylko frontend po zmianach
-./update-azure.sh frontend
-
-# Aktualizuj tylko API
-./update-azure.sh api
-
-# Aktualizuj wszystko
-./update-azure.sh all
-```
 
 ## 🏗️ Architektura
 
@@ -37,23 +24,17 @@ az login
 ├─────────────────────────────────────────┤
 │  🌐 Frontend     ⚙️ API     🤖 ML Model │
 │  (Next.js)      (.NET)    (Python)     │
-│  Port 3001      Port 5144  Port 5002   │
+│  Port 3000      Port 80    Port 5000   │
 └─────────────────────────────────────────┘
 ```
 
 ### Komponenty:
 
 - **Frontend**: Next.js aplikacja z formularzem zdrowotnym
-- **API**: .NET Core Web API z endpointami zdrowotnymi
+- **API**: .NET Core Web API z zaawansowaną analizą zdrowotną
 - **ML Model**: Python Flask z inteligentnym modelem predykcji
 
 ## 📋 Wymagania
-
-### Lokalne uruchomienie:
-
-- Docker & Docker Compose
-- .NET 8 SDK (opcjonalnie)
-- Node.js 18+ (opcjonalnie)
 
 ### Deployment na Azure:
 
@@ -61,75 +42,69 @@ az login
 - Aktywna subskrypcja Azure
 - Docker
 
-## 🔧 Lokalne uruchomienie
+### Lokalne uruchomienie:
 
-```bash
-# Sklonuj repo
-git clone <repo-url>
-cd MyHealthSolution
-
-# Uruchom wszystko w Docker
-docker compose up -d
-
-# Aplikacja dostępna na:
-# Frontend: http://localhost:3001
-# API: http://localhost:5144/swagger
-# ML Model: http://localhost:5002/health
-```
+- .NET 8 SDK
+- Node.js 18+
+- Python 3.11+
 
 ## ☁️ Deployment na Azure
 
-### Opcja 1: Automatyczny deployment
+### Automatyczny deployment
 
 ```bash
-./deploy-azure.sh
+./deploy-azure-fixed.sh
 ```
 
-### Opcja 2: Automatyczny CI/CD z GitHub Actions
+### Automatyczny CI/CD z GitHub Actions
 
 Skonfiguruj zgodnie z `CICD-SETUP.md` - po tym każdy `git push` automatycznie deployuje zmiany!
 
-### Opcja 3: Manual deployment
-
-Zobacz szczegóły w `AZURE-DEPLOYMENT.md`
-
 ## 🔄 Aktualizacje
 
-### Po wprowadzeniu zmian:
-
-#### Opcja 1: Semi-automatyczna
-
-```bash
-./update-azure.sh frontend  # Tylko frontend (najczęściej)
-./update-azure.sh api       # Tylko API
-./update-azure.sh all       # Wszystkie komponenty
-```
-
-#### Opcja 2: Pełna automatyzacja (CI/CD)
+### GitHub Actions (Automatyczne)
 
 ```bash
 git add .
-git commit -m "Update styling"
+git commit -m "Update feature"
 git push origin main
 # GitHub Actions automatycznie deployuje! 🎉
 ```
 
+### Manualne aktualizacje
+
+```bash
+# Zbuduj nową wersję API
+cd MyHealth.Api
+az acr build --registry myhealthfixed1637 --image api:$(date +%Y%m%d-%H%M%S) .
+
+# Wdróż nową wersję
+az containerapp update --name myhealth-api --resource-group rg-myhealth-fixed --image myhealthfixed1637.azurecr.io/api:NOWY_TAG
+```
+
 ## 🤖 ML Model
 
-### Predykcja zdrowia:
+### Zaawansowana analiza zdrowia:
 
 - **Input**: 17 parametrów zdrowotnych (wiek, wzrost, waga, styl życia)
-- **Output**: Klasyfikacja BMI (Normal_Weight, Overweight, Obesity, itp.)
-- **Model**: Inteligentny algorytm BMI z uwzględnieniem wieku i aktywności
+- **Output**: Kompletna analiza zdrowotna z oceną 0-100 punktów
+- **Funkcje**: 
+  - Analiza BMI i wagi idealnej
+  - Ocena żywienia i aktywności fizycznej
+  - Analiza stylu życia i czynników ryzyka
+  - Spersonalizowane rekomendacje
+  - Plan działania z celami
 
-### Status oryginalnego modelu Databricks:
+### Status modelu:
 
-Model został wymigrowany z Databricks Cloud na lokalny deployment. Ze względu na problemy kompatybilności z environment Databricks, używamy inteligentnego dummy modelu który:
+Model używa inteligentnego algorytmu który:
 
-- ✅ Oblicza BMI prawidłowo
-- ✅ Uwzględnia wiek i poziom aktywności
+- ✅ Oblicza BMI i wiek metaboliczny
+- ✅ Analizuje nawyki żywieniowe
+- ✅ Ocenia poziom aktywności fizycznej
+- ✅ Identyfikuje czynniki ryzyka
+- ✅ Generuje spersonalizowane rekomendacje
 - ✅ Działa stabilnie w każdym środowisku
-- ✅ Daje sensowne predykcje zdrowotne
 
 ## 💰 Koszty Azure
 
@@ -145,10 +120,9 @@ Model został wymigrowany z Databricks Cloud na lokalny deployment. Ze względu 
 
 ## 📚 Dokumentacja
 
-- [`QUICK-DEPLOY.md`](QUICK-DEPLOY.md) - Szybki start deployment
 - [`AZURE-DEPLOYMENT.md`](AZURE-DEPLOYMENT.md) - Szczegółowa dokumentacja Azure
 - [`CICD-SETUP.md`](CICD-SETUP.md) - Konfiguracja automatycznego CI/CD
-- [`deployment-guide.md`](deployment-guide.md) - Oryginalny przewodnik
+- [`GITHUB-SECRETS-SETUP.md`](GITHUB-SECRETS-SETUP.md) - Konfiguracja sekretów GitHub
 
 ## 🛠️ Development
 
@@ -159,8 +133,7 @@ MyHealthSolution/
 ├── health-frontend/          # Next.js frontend
 ├── MyHealth.Api/            # .NET Core API
 ├── ml-model/               # Python ML model
-├── deploy-azure.sh         # 1-klik Azure deployment
-├── update-azure.sh         # Szybkie aktualizacje
+├── deploy-azure-fixed.sh   # Azure deployment script
 └── .github/workflows/      # GitHub Actions CI/CD
 ```
 
@@ -173,12 +146,35 @@ npm run dev  # http://localhost:3000
 
 # API (.NET)
 cd MyHealth.Api
-dotnet run   # http://localhost:5144
+dotnet run   # http://localhost:5001
 
 # ML Model (Python)
 cd ml-model
 python app.py  # http://localhost:5000
 ```
+
+## 🎯 Funkcje aplikacji
+
+### Frontend:
+- Responsywny formularz zdrowotny
+- Wizualizacja wyników analizy
+- Interaktywne wykresy i wskaźniki
+- Spersonalizowane rekomendacje
+
+### API:
+- Zaawansowana analiza zdrowotna
+- Ocena BMI i wagi idealnej
+- Analiza żywienia (84-punktowa skala)
+- Ocena aktywności fizycznej
+- Analiza stylu życia (95-punktowa skala)
+- Identyfikacja czynników ryzyka
+- Generowanie planów działania
+
+### ML Model:
+- Predykcja kategorii wagi
+- Dummy model z inteligentną logiką
+- Stabilne działanie w produkcji
+- Szybkie odpowiedzi (< 1s)
 
 ## 🤝 Contributing
 
@@ -193,29 +189,15 @@ GitHub Actions automatycznie przetestuje zmiany!
 ## 📞 Support
 
 - **Issues**: GitHub Issues
-- **Monitoring**: Azure Portal → rg-myhealth
-- **Logi**: `az containerapp logs show --name myhealth-frontend --resource-group rg-myhealth`
+- **Monitoring**: Azure Portal → rg-myhealth-fixed
+- **Logi**: `az containerapp logs show --name myhealth-api --resource-group rg-myhealth-fixed`
+
+## 🎉 Status projektu
+
+✅ **Wszystko działa!**
+- Frontend: https://myhealth-frontend.happysea-444138bb.eastus.azurecontainerapps.io
+- API: https://myhealth-api.happysea-444138bb.eastus.azurecontainerapps.io
+- ML Model: Wewnętrzny endpoint
+- GitHub Actions: Skonfigurowane i działające
 
 ---
-
-## 🎯 TL;DR - Quick Commands
-
-```bash
-# 🚀 Deploy na Azure
-./deploy-azure.sh
-
-# 🔄 Aktualizuj frontend
-./update-azure.sh frontend
-
-# 🧪 Test lokalnie
-./test-before-deploy.sh
-
-# 🔍 Sprawdź logi
-az containerapp logs show --name myhealth-frontend --resource-group rg-myhealth --follow
-
-# 🗑️ Usuń z Azure
-az group delete --name rg-myhealth --yes --no-wait
-```
-
-**Aplikacja gotowa do produkcji w 15 minut!** ⚡
-# Test
