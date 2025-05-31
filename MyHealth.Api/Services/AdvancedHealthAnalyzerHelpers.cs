@@ -277,9 +277,9 @@ namespace MyHealth.Api.Services
         private List<string> GenerateSupplementRecommendations(HealthRequest request)
         {
             var supplements = new List<string>();
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-            var gender = request.DataFrame_Split.Data[0][9].ToString();
-            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4].ToString());
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]?.ToString() ?? "25");
+            var gender = request.DataFrame_Split.Data[0][9]?.ToString() ?? "Male";
+            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4]?.ToString() ?? "2");
 
             // Podstawowe suplementy
             supplements.Add("Witamina D3 (2000-4000 IU dziennie)");
@@ -347,24 +347,41 @@ namespace MyHealth.Api.Services
             };
         }
 
-        private int EstimateCaloriesBurned(double faf, HealthRequest request)
+        private double EstimateCaloriesBurned(double faf, HealthRequest request)
         {
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "25");
 
-            // Bazowy współczynnik spalania kalorii na podstawie wieku i wagi
-            var baseCaloriesPerHour = weight * (age > 40 ? 6 : 7);
+                // Szacowanie spalonych kalorii na podstawie częstotliwości aktywności
+                var caloriesPerSession = weight * 5; // Przybliżone spalanie na sesję
+                return faf * caloriesPerSession * 7; // Tygodniowo
+            }
+            catch (Exception ex)
+            {
+                return 1000; // Wartość domyślna
+            }
+        }
 
-            // Szacowane godziny aktywności tygodniowo
-            var hoursPerWeek = faf * 1.5; // Każdy punkt FAF = ~1.5h aktywności
-
-            return (int)(baseCaloriesPerHour * hoursPerWeek);
+        private double EstimateActivityTime(double faf)
+        {
+            try
+            {
+                // Szacowanie czasu aktywności w godzinach tygodniowo
+                return faf * 1.5; // 1.5 godziny na sesję
+            }
+            catch (Exception ex)
+            {
+                return 3; // Wartość domyślna
+            }
         }
 
         private List<string> GenerateFitnessRecommendations(double faf, double tue, string mtrans, HealthRequest request)
         {
             var recommendations = new List<string>();
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]?.ToString() ?? "25");
 
             if (faf < 2)
             {
@@ -399,9 +416,9 @@ namespace MyHealth.Api.Services
         private string GenerateExercisePlan(double faf, HealthRequest request)
         {
             var sb = new StringBuilder();
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]?.ToString() ?? "25");
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]?.ToString() ?? "1.7");
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]?.ToString() ?? "70");
 
             sb.AppendLine("**Spersonalizowany plan ćwiczeń:**");
             sb.AppendLine();

@@ -9,7 +9,20 @@ namespace MyHealth.Api.Services
         {
             try
             {
-                var prediction = assessments.FirstOrDefault()?.Prediction ?? "Unknown";
+                // Sprawdzenie podstawowych danych
+                if (request == null)
+                    throw new ArgumentNullException(nameof(request), "Request cannot be null");
+                
+                if (request.DataFrame_Split == null)
+                    throw new ArgumentNullException(nameof(request.DataFrame_Split), "DataFrame_Split cannot be null");
+                
+                if (request.DataFrame_Split.Data == null || request.DataFrame_Split.Data.Length == 0)
+                    throw new ArgumentException("DataFrame_Split.Data cannot be null or empty");
+                
+                if (request.DataFrame_Split.Data[0] == null || request.DataFrame_Split.Data[0].Length < 17)
+                    throw new ArgumentException($"DataFrame_Split.Data[0] must have at least 17 elements, but has {request.DataFrame_Split.Data[0]?.Length ?? 0}");
+
+                var prediction = assessments?.FirstOrDefault()?.Prediction ?? "Unknown";
                 
                 var result = new AdvancedHealthAnalysisResult
                 {
@@ -56,119 +69,168 @@ namespace MyHealth.Api.Services
 
         private PersonalProfile BuildPersonalProfile(HealthRequest request)
         {
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString()); // Age
-            var gender = request.DataFrame_Split.Data[0][9].ToString(); // Gender
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString()); // Height
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString()); // Weight
-
-            var bmi = weight / (height * height);
-            var ageGroup = GetAgeGroup(age);
-            var bmiCategory = GetBMICategory(bmi);
-
-            return new PersonalProfile
+            try
             {
-                Age = age,
-                Gender = gender,
-                Height = height,
-                Weight = weight,
-                BMI = Math.Round(bmi, 1),
-                AgeGroup = ageGroup,
-                BMICategory = bmiCategory,
-                IdealWeightRange = CalculateIdealWeightRange(height),
-                MetabolicAge = CalculateMetabolicAge(request)
-            };
+                var data = request.DataFrame_Split.Data[0];
+                
+                // Sprawdzenie czy wszystkie potrzebne indeksy istnieją
+                if (data.Length < 17)
+                    throw new ArgumentException($"Data array must have at least 17 elements, but has {data.Length}");
+
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "0"); // Age
+                var gender = data[9]?.ToString() ?? "Unknown"; // Gender
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7"); // Height
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70"); // Weight
+
+                var bmi = weight / (height * height);
+                var ageGroup = GetAgeGroup(age);
+                var bmiCategory = GetBMICategory(bmi);
+
+                return new PersonalProfile
+                {
+                    Age = age,
+                    Gender = gender,
+                    Height = height,
+                    Weight = weight,
+                    BMI = Math.Round(bmi, 1),
+                    AgeGroup = ageGroup,
+                    BMICategory = bmiCategory,
+                    IdealWeightRange = CalculateIdealWeightRange(height),
+                    MetabolicAge = CalculateMetabolicAge(request)
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error in BuildPersonalProfile: {ex.Message}. Data: {string.Join(",", request.DataFrame_Split.Data[0] ?? new object[0])}", ex);
+            }
         }
 
         private BMIAnalysis AnalyzeBMI(HealthRequest request)
         {
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-            var gender = request.DataFrame_Split.Data[0][9].ToString();
-
-            var bmi = weight / (height * height);
-            var category = GetBMICategory(bmi);
-            var idealWeight = CalculateIdealWeight(height, gender);
-            var weightDifference = weight - idealWeight;
-
-            var analysis = new BMIAnalysis
+            try
             {
-                CurrentBMI = Math.Round(bmi, 1),
-                Category = category,
-                IdealBMI = 22.0, // Środek zdrowego zakresu
-                IdealWeight = Math.Round(idealWeight, 1),
-                WeightDifference = Math.Round(weightDifference, 1),
-                HealthRisk = GetBMIHealthRisk(bmi, age),
-                DetailedExplanation = GenerateBMIExplanation(bmi, category, age, gender),
-                Recommendations = GenerateBMIRecommendations(bmi, weightDifference, age, gender)
-            };
+                var data = request.DataFrame_Split.Data[0];
+                
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "25");
+                var gender = data[9]?.ToString() ?? "Male";
 
-            return analysis;
+                var bmi = weight / (height * height);
+                var category = GetBMICategory(bmi);
+                var idealWeight = CalculateIdealWeight(height, gender);
+                var weightDifference = weight - idealWeight;
+
+                var analysis = new BMIAnalysis
+                {
+                    CurrentBMI = Math.Round(bmi, 1),
+                    Category = category,
+                    IdealBMI = 22.0, // Środek zdrowego zakresu
+                    IdealWeight = Math.Round(idealWeight, 1),
+                    WeightDifference = Math.Round(weightDifference, 1),
+                    HealthRisk = GetBMIHealthRisk(bmi, age),
+                    DetailedExplanation = GenerateBMIExplanation(bmi, category, age, gender),
+                    Recommendations = GenerateBMIRecommendations(bmi, weightDifference, age, gender)
+                };
+
+                return analysis;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error in AnalyzeBMI: {ex.Message}", ex);
+            }
         }
 
         private NutritionalAnalysis AnalyzeNutrition(HealthRequest request)
         {
-            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4].ToString()); // Vegetable consumption
-            var ncp = Convert.ToDouble(request.DataFrame_Split.Data[0][5].ToString()); // Number of meals
-            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6].ToString()); // Water consumption
-            var favc = request.DataFrame_Split.Data[0][11].ToString(); // High caloric food
-            var caec = request.DataFrame_Split.Data[0][12].ToString(); // Eating between meals
-            var calc = request.DataFrame_Split.Data[0][15].ToString(); // Alcohol consumption
-
-            var nutritionScore = CalculateNutritionScore(fcvc, ncp, ch2o, favc, caec, calc);
-
-            return new NutritionalAnalysis
+            try
             {
-                VegetableConsumption = AnalyzeVegetableConsumption(fcvc),
-                MealFrequency = AnalyzeMealFrequency(ncp),
-                HydrationLevel = AnalyzeHydration(ch2o),
-                CalorieIntake = AnalyzeCalorieIntake(favc, caec),
-                AlcoholConsumption = AnalyzeAlcoholConsumption(calc),
-                NutritionScore = nutritionScore,
-                DetailedNutritionPlan = GenerateNutritionPlan(fcvc, ncp, ch2o, favc, caec, calc),
-                SupplementRecommendations = GenerateSupplementRecommendations(request)
-            };
+                var data = request.DataFrame_Split.Data[0];
+                
+                var fcvc = Convert.ToDouble(data[4]?.ToString() ?? "2"); // Vegetable consumption
+                var ncp = Convert.ToDouble(data[5]?.ToString() ?? "3"); // Number of meals
+                var ch2o = Convert.ToDouble(data[6]?.ToString() ?? "2"); // Water consumption
+                var favc = data[11]?.ToString() ?? "no"; // High caloric food
+                var caec = data[12]?.ToString() ?? "Sometimes"; // Eating between meals
+                var calc = data[15]?.ToString() ?? "no"; // Alcohol consumption
+
+                var nutritionScore = CalculateNutritionScore(fcvc, ncp, ch2o, favc, caec, calc);
+
+                return new NutritionalAnalysis
+                {
+                    VegetableConsumption = AnalyzeVegetableConsumption(fcvc),
+                    MealFrequency = AnalyzeMealFrequency(ncp),
+                    HydrationLevel = AnalyzeHydration(ch2o),
+                    CalorieIntake = AnalyzeCalorieIntake(favc, caec),
+                    AlcoholConsumption = AnalyzeAlcoholConsumption(calc),
+                    NutritionScore = nutritionScore,
+                    DetailedNutritionPlan = GenerateNutritionPlan(fcvc, ncp, ch2o, favc, caec, calc),
+                    SupplementRecommendations = GenerateSupplementRecommendations(request)
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error in AnalyzeNutrition: {ex.Message}", ex);
+            }
         }
 
         private PhysicalActivityAnalysis AnalyzePhysicalActivity(HealthRequest request)
         {
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString()); // Physical activity frequency
-            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8].ToString()); // Technology use
-            var mtrans = request.DataFrame_Split.Data[0][16].ToString(); // Transportation
-
-            var activityLevel = GetActivityLevel(faf);
-            var sedentaryRisk = CalculateSedentaryRisk(tue, mtrans);
-
-            return new PhysicalActivityAnalysis
+            try
             {
-                ActivityFrequency = faf,
-                ActivityLevel = activityLevel,
-                TechnologyTime = tue,
-                TransportationType = mtrans,
-                SedentaryRisk = sedentaryRisk,
-                CaloriesBurnedWeekly = EstimateCaloriesBurned(faf, request),
-                FitnessRecommendations = GenerateFitnessRecommendations(faf, tue, mtrans, request),
-                ExercisePlan = GenerateExercisePlan(faf, request)
-            };
+                var data = request.DataFrame_Split.Data[0];
+                
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1"); // Physical activity frequency
+                var tue = Convert.ToDouble(data[8]?.ToString() ?? "2"); // Technology use
+                var mtrans = data[16]?.ToString() ?? "Public_Transportation"; // Transportation
+
+                var activityLevel = GetActivityLevel(faf);
+                var sedentaryRisk = CalculateSedentaryRisk(tue, mtrans);
+
+                return new PhysicalActivityAnalysis
+                {
+                    ActivityFrequency = faf,
+                    ActivityLevel = activityLevel,
+                    TechnologyTime = tue,
+                    TransportationType = mtrans,
+                    SedentaryRisk = sedentaryRisk,
+                    CaloriesBurnedWeekly = (int)EstimateCaloriesBurned(faf, request),
+                    FitnessRecommendations = GenerateFitnessRecommendations(faf, tue, mtrans, request),
+                    ExercisePlan = GenerateExercisePlan(faf, request)
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error in AnalyzePhysicalActivity: {ex.Message}", ex);
+            }
         }
 
         private LifestyleAnalysis AnalyzeLifestyle(HealthRequest request)
         {
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var scc = request.DataFrame_Split.Data[0][14].ToString(); // Calorie monitoring
-            var familyHistory = request.DataFrame_Split.Data[0][10].ToString();
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-
-            return new LifestyleAnalysis
+            try
             {
-                SmokingStatus = AnalyzeSmokingStatus(smoke),
-                HealthMonitoring = AnalyzeHealthMonitoring(scc),
-                FamilyHistory = AnalyzeFamilyHistory(familyHistory),
-                LifestyleScore = CalculateLifestyleScore(request),
-                StressLevel = EstimateStressLevel(request),
-                SleepQuality = EstimateSleepQuality(request),
-                LifestyleRecommendations = GenerateLifestyleRecommendations(request)
-            };
+                var data = request.DataFrame_Split.Data[0];
+                
+                var smoke = data[13]?.ToString() ?? "no";
+                var scc = data[14]?.ToString() ?? "no"; // Calorie monitoring
+                var familyHistory = data[10]?.ToString() ?? "no";
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "25");
+
+                return new LifestyleAnalysis
+                {
+                    SmokingStatus = AnalyzeSmokingStatus(smoke),
+                    HealthMonitoring = AnalyzeHealthMonitoring(scc),
+                    FamilyHistory = AnalyzeFamilyHistory(familyHistory),
+                    LifestyleScore = CalculateLifestyleScore(request),
+                    StressLevel = EstimateStressLevel(request),
+                    SleepQuality = EstimateSleepQuality(request),
+                    LifestyleRecommendations = GenerateLifestyleRecommendations(request)
+                };
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error in AnalyzeLifestyle: {ex.Message}", ex);
+            }
         }
 
         private RiskFactorAnalysis AnalyzeRiskFactors(HealthRequest request)
@@ -233,42 +295,50 @@ namespace MyHealth.Api.Services
 
         private int CalculateHealthScore(HealthRequest request)
         {
-            var score = 100; // Zaczynamy od 100 punktów
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var score = 100; // Zaczynamy od 100 punktów
 
-            // Odejmujemy punkty za czynniki ryzyka
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
-            var bmi = weight / (height * height);
+                // Odejmujemy punkty za czynniki ryzyka
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var bmi = weight / (height * height);
 
-            // BMI
-            if (bmi < 18.5 || bmi > 25) score -= 15;
-            else if (bmi > 30) score -= 30;
+                // BMI
+                if (bmi < 18.5 || bmi > 25) score -= 15;
+                else if (bmi > 30) score -= 30;
 
-            // Aktywność fizyczna
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
-            if (faf < 1) score -= 20;
-            else if (faf < 2) score -= 10;
+                // Aktywność fizyczna
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
+                if (faf < 1) score -= 20;
+                else if (faf < 2) score -= 10;
 
-            // Palenie
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            if (smoke == "yes") score -= 25;
+                // Palenie
+                var smoke = data[13]?.ToString() ?? "no";
+                if (smoke.ToLower() == "yes") score -= 25;
 
-            // Alkohol
-            var calc = request.DataFrame_Split.Data[0][15].ToString();
-            if (calc == "Frequently") score -= 15;
-            else if (calc == "Always") score -= 25;
+                // Alkohol
+                var calc = data[15]?.ToString() ?? "no";
+                if (calc.ToLower() == "frequently") score -= 15;
+                else if (calc.ToLower() == "always") score -= 25;
 
-            // Nawyki żywieniowe
-            var favc = request.DataFrame_Split.Data[0][11].ToString();
-            if (favc == "yes") score -= 10;
+                // Nawyki żywieniowe
+                var favc = data[11]?.ToString() ?? "no";
+                if (favc.ToLower() == "yes") score -= 10;
 
-            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4].ToString());
-            if (fcvc < 2) score -= 10;
+                var fcvc = Convert.ToDouble(data[4]?.ToString() ?? "2");
+                if (fcvc < 2) score -= 10;
 
-            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6].ToString());
-            if (ch2o < 2) score -= 10;
+                var ch2o = Convert.ToDouble(data[6]?.ToString() ?? "2");
+                if (ch2o < 2) score -= 10;
 
-            return Math.Max(0, Math.Min(100, score));
+                return Math.Max(0, Math.Min(100, score));
+            }
+            catch (Exception ex)
+            {
+                return 50; // Wartość domyślna w przypadku błędu
+            }
         }
 
         private string GenerateDetailedDescription(HealthRequest request, string prediction)
@@ -443,25 +513,33 @@ namespace MyHealth.Api.Services
 
         private int CalculateMetabolicAge(HealthRequest request)
         {
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
-            var bmi = weight / (height * height);
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "25");
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
+                var smoke = data[13]?.ToString() ?? "no";
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var bmi = weight / (height * height);
 
-            var metabolicAge = age;
+                var metabolicAge = age;
 
-            // Czynniki zwiększające wiek metaboliczny
-            if (bmi > 25) metabolicAge += (int)((bmi - 25) * 2);
-            if (faf < 2) metabolicAge += 5;
-            if (smoke == "yes") metabolicAge += 10;
+                // Czynniki zwiększające wiek metaboliczny
+                if (bmi > 25) metabolicAge += (int)((bmi - 25) * 2);
+                if (faf < 2) metabolicAge += 5;
+                if (smoke.ToLower() == "yes") metabolicAge += 10;
 
-            // Czynniki zmniejszające wiek metaboliczny
-            if (faf > 3) metabolicAge -= 3;
-            if (bmi >= 18.5 && bmi <= 24.9) metabolicAge -= 2;
+                // Czynniki zmniejszające wiek metaboliczny
+                if (faf > 3) metabolicAge -= 3;
+                if (bmi >= 18.5 && bmi <= 24.9) metabolicAge -= 2;
 
-            return Math.Max(age - 10, Math.Min(age + 20, metabolicAge));
+                return Math.Max(age - 10, Math.Min(age + 20, metabolicAge));
+            }
+            catch (Exception ex)
+            {
+                return 25; // Wartość domyślna w przypadku błędu
+            }
         }
 
         // Będę kontynuować implementację pozostałych metod...

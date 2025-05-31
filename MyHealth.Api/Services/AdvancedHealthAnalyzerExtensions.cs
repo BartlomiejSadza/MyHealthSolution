@@ -8,336 +8,457 @@ namespace MyHealth.Api.Services
         // Lifestyle Analysis Methods
         private string AnalyzeSmokingStatus(string smoke)
         {
-            return smoke switch
+            return smoke.ToLower() switch
             {
-                "no" => "Niepalący - doskonale dla zdrowia układu oddechowego i sercowo-naczyniowego",
-                "yes" => "Palący - znacznie zwiększone ryzyko nowotworów, chorób serca i płuc",
-                _ => "Status nieznany"
+                "yes" => "Palenie tytoniu - główny czynnik ryzyka chorób serca, płuc i nowotworów",
+                "no" => "Niepalący - doskonały wybór dla zdrowia",
+                _ => "Status palenia nieznany"
             };
         }
 
         private string AnalyzeHealthMonitoring(string scc)
         {
-            return scc switch
+            return scc.ToLower() switch
             {
-                "yes" => "Aktywne monitorowanie - świetny nawyk dla kontroli zdrowia",
-                "no" => "Brak monitorowania - rozważ śledzenie podstawowych parametrów",
-                _ => "Status nieznany"
+                "yes" => "Monitoruje kalorie - świadomy wybór żywieniowy",
+                "no" => "Nie monitoruje kalorii - rozważ śledzenie nawyków żywieniowych",
+                _ => "Status monitorowania nieznany"
             };
         }
 
         private string AnalyzeFamilyHistory(string familyHistory)
         {
-            return familyHistory switch
+            return familyHistory.ToLower() switch
             {
-                "yes" => "Obciążenie genetyczne - zwiększona czujność i profilaktyka",
-                "no" => "Brak obciążeń rodzinnych - korzystny czynnik genetyczny",
-                _ => "Historia nieznana"
+                "yes" => "Historia rodzinna nadwagi - zwiększone ryzyko genetyczne",
+                "no" => "Brak rodzinnej historii nadwagi - korzystny profil genetyczny",
+                _ => "Historia rodzinna nieznana"
             };
         }
 
         private int CalculateLifestyleScore(HealthRequest request)
         {
-            var score = 100;
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var scc = request.DataFrame_Split.Data[0][14].ToString();
-            var calc = request.DataFrame_Split.Data[0][15].ToString();
-            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8].ToString());
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var smoke = data[13]?.ToString() ?? "no";
+                var scc = data[14]?.ToString() ?? "no";
+                var calc = data[15]?.ToString() ?? "no";
+                var tue = Convert.ToDouble(data[8]?.ToString() ?? "2");
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
 
-            // Palenie
-            if (smoke == "yes") score -= 30;
+                var score = 50; // Bazowy wynik
 
-            // Monitorowanie zdrowia
-            if (scc == "no") score -= 10;
+                // Palenie (największy wpływ)
+                if (smoke.ToLower() == "yes") score -= 25;
+                else score += 10;
 
-            // Alkohol
-            if (calc == "Frequently") score -= 15;
-            else if (calc == "Always") score -= 25;
+                // Monitorowanie zdrowia
+                if (scc.ToLower() == "yes") score += 10;
 
-            // Czas przy technologii
-            if (tue > 8) score -= 15;
-            else if (tue > 6) score -= 10;
+                // Alkohol
+                score += calc.ToLower() switch
+                {
+                    "no" => 10,
+                    "sometimes" => 5,
+                    "frequently" => -10,
+                    "always" => -20,
+                    _ => 0
+                };
 
-            // Aktywność fizyczna
-            if (faf < 1) score -= 20;
-            else if (faf < 2) score -= 10;
+                // Aktywność fizyczna
+                score += (int)(faf * 5);
 
-            return Math.Max(0, score);
+                // Czas przy technologii
+                if (tue > 6) score -= 10;
+                else if (tue < 3) score += 5;
+
+                return Math.Max(0, Math.Min(100, score));
+            }
+            catch (Exception ex)
+            {
+                return 50; // Wartość domyślna
+            }
         }
 
         private string EstimateStressLevel(HealthRequest request)
         {
-            var stressFactors = 0;
-            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8].ToString());
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var caec = request.DataFrame_Split.Data[0][12].ToString();
-
-            if (tue > 8) stressFactors += 2;
-            if (faf < 2) stressFactors += 2;
-            if (smoke == "yes") stressFactors += 2;
-            if (caec == "Frequently") stressFactors += 1;
-
-            return stressFactors switch
+            try
             {
-                0 => "Niski - dobra równowaga życiowa",
-                <= 2 => "Umiarkowany - wprowadź techniki relaksacyjne",
-                <= 4 => "Podwyższony - wymagane zarządzanie stresem",
-                _ => "Wysoki - pilnie potrzebna interwencja"
-            };
+                var data = request.DataFrame_Split.Data[0];
+                var tue = Convert.ToDouble(data[8]?.ToString() ?? "2");
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
+                var smoke = data[13]?.ToString() ?? "no";
+                var caec = data[12]?.ToString() ?? "Sometimes";
+
+                var stressScore = 0;
+
+                // Wysokie użycie technologii może wskazywać na stres
+                if (tue > 6) stressScore += 2;
+                
+                // Niska aktywność fizyczna
+                if (faf < 2) stressScore += 2;
+                
+                // Palenie często związane ze stresem
+                if (smoke.ToLower() == "yes") stressScore += 3;
+                
+                // Jedzenie między posiłkami może wskazywać na stres
+                if (caec.ToLower() == "frequently" || caec.ToLower() == "always") stressScore += 2;
+
+                return stressScore switch
+                {
+                    >= 6 => "Wysoki - rozważ techniki zarządzania stresem",
+                    >= 4 => "Umiarkowany - wprowadź relaksację do rutyny",
+                    >= 2 => "Niski - dobra równowaga życiowa",
+                    _ => "Bardzo niski - doskonałe zarządzanie stresem"
+                };
+            }
+            catch (Exception ex)
+            {
+                return "Nieznany - brak danych do oceny";
+            }
         }
 
         private string EstimateSleepQuality(HealthRequest request)
         {
-            var sleepFactors = 0;
-            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8].ToString());
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var calc = request.DataFrame_Split.Data[0][15].ToString();
-
-            if (tue > 6) sleepFactors += 1;
-            if (faf < 2) sleepFactors += 1;
-            if (smoke == "yes") sleepFactors += 2;
-            if (calc == "Frequently" || calc == "Always") sleepFactors += 1;
-
-            return sleepFactors switch
+            try
             {
-                0 => "Prawdopodobnie dobra - zdrowe nawyki",
-                <= 2 => "Umiarkowana - możliwe drobne problemy",
-                <= 4 => "Obniżona - wprowadź higienę snu",
-                _ => "Prawdopodobnie słaba - konsultacja ze specjalistą"
-            };
+                var data = request.DataFrame_Split.Data[0];
+                var tue = Convert.ToDouble(data[8]?.ToString() ?? "2");
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
+                var smoke = data[13]?.ToString() ?? "no";
+                var calc = data[15]?.ToString() ?? "no";
+
+                var sleepScore = 5; // Bazowy wynik (0-10)
+
+                // Wysokie użycie technologii może wpływać na sen
+                if (tue > 6) sleepScore -= 2;
+                
+                // Aktywność fizyczna poprawia jakość snu
+                if (faf >= 3) sleepScore += 2;
+                else if (faf < 1) sleepScore -= 1;
+                
+                // Palenie wpływa negatywnie na sen
+                if (smoke.ToLower() == "yes") sleepScore -= 2;
+                
+                // Alkohol wpływa na jakość snu
+                if (calc.ToLower() == "frequently" || calc.ToLower() == "always") sleepScore -= 1;
+
+                sleepScore = Math.Max(0, Math.Min(10, sleepScore));
+
+                return sleepScore switch
+                {
+                    >= 8 => "Doskonała - regeneracyjny sen",
+                    >= 6 => "Dobra - zadowalająca jakość snu",
+                    >= 4 => "Przeciętna - możliwe ulepszenia",
+                    >= 2 => "Słaba - wymagane zmiany nawyków",
+                    _ => "Bardzo słaba - skonsultuj się z lekarzem"
+                };
+            }
+            catch (Exception ex)
+            {
+                return "Nieznana - brak danych do oceny";
+            }
         }
 
         private List<string> GenerateLifestyleRecommendations(HealthRequest request)
         {
             var recommendations = new List<string>();
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8].ToString());
-            var calc = request.DataFrame_Split.Data[0][15].ToString();
-
-            if (smoke == "yes")
+            
+            try
             {
-                recommendations.Add("PRIORYTET: Rzuć palenie - skonsultuj się z lekarzem");
-                recommendations.Add("Rozważ terapię nikotynową lub alternatywne metody");
-            }
+                var data = request.DataFrame_Split.Data[0];
+                var smoke = data[13]?.ToString() ?? "no";
+                var tue = Convert.ToDouble(data[8]?.ToString() ?? "2");
+                var calc = data[15]?.ToString() ?? "no";
 
-            if (tue > 6)
+                if (smoke.ToLower() == "yes")
+                {
+                    recommendations.Add("🚭 Rzucenie palenia - najważniejsza zmiana dla zdrowia");
+                    recommendations.Add("📞 Skorzystaj z poradni antynikotynowej");
+                    recommendations.Add("💊 Rozważ terapię zastępczą nikotyny");
+                }
+
+                if (tue > 6)
+                {
+                    recommendations.Add("📱 Ogranicz czas przed ekranami do maksymalnie 6h dziennie");
+                    recommendations.Add("👀 Reguła 20-20-20: co 20 min patrz 20 sekund na obiekt 20 stóp daleko");
+                    recommendations.Add("🌙 Unikaj ekranów 2h przed snem");
+                }
+
+                if (calc.ToLower() == "frequently" || calc.ToLower() == "always")
+                {
+                    recommendations.Add("🍷 Ogranicz alkohol do maksymalnie 1-2 drinków tygodniowo");
+                    recommendations.Add("💧 Zastąp alkohol wodą z cytryną lub herbatą ziołową");
+                }
+
+                // Ogólne rekomendacje lifestyle
+                recommendations.Add("😴 Utrzymuj regularny rytm snu (7-9h nocą)");
+                recommendations.Add("🧘 Wprowadź 10 minut medytacji dziennie");
+                recommendations.Add("🌿 Spędzaj czas na świeżym powietrzu");
+                recommendations.Add("👥 Utrzymuj aktywne kontakty społeczne");
+
+                return recommendations;
+            }
+            catch (Exception ex)
             {
-                recommendations.Add("Ogranicz czas ekranowy do maksymalnie 6 godzin dziennie");
-                recommendations.Add("Wprowadź 'digital detox' - 1 dzień w tygodniu bez technologii");
+                return new List<string> { "Skonsultuj się z lekarzem w sprawie zdrowego stylu życia" };
             }
-
-            if (calc != "no")
-            {
-                recommendations.Add("Ogranicz alkohol do maksymalnie 2 jednostek tygodniowo");
-            }
-
-            recommendations.Add("Wprowadź codzienną medytację lub techniki oddechowe");
-            recommendations.Add("Utrzymuj regularny rytm snu (7-9 godzin)");
-            recommendations.Add("Spędzaj więcej czasu na świeżym powietrzu");
-
-            return recommendations;
         }
 
         // Risk Factor Analysis Methods
         private void AnalyzeWeightRisk(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
-            var bmi = weight / (height * height);
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var bmi = weight / (height * height);
 
-            if (bmi < 18.5)
-            {
-                riskFactors.Add(new RiskFactor
+                if (bmi < 18.5)
                 {
-                    Name = "Niedowaga",
-                    Level = "Średnie",
-                    Description = "BMI poniżej normy może prowadzić do niedoborów żywieniowych",
-                    Impact = "Osłabiona odporność, problemy hormonalne, osteoporoza",
-                    PreventionTips = new List<string> { "Zwiększ spożycie kalorii", "Dodaj białko do diety", "Trening siłowy" }
-                });
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Niedowaga",
+                        Level = "Średnie",
+                        Description = "BMI poniżej normy może prowadzić do niedoborów żywieniowych",
+                        Impact = "Osłabiona odporność, problemy hormonalne, osteoporoza",
+                        PreventionTips = new List<string> { "Zwiększ spożycie kalorii", "Dodaj białko do diety", "Trening siłowy" }
+                    });
+                }
+                else if (bmi > 30)
+                {
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Otyłość",
+                        Level = "Wysokie",
+                        Description = "BMI powyżej 30 znacznie zwiększa ryzyko chorób przewlekłych",
+                        Impact = "Cukrzyca, choroby serca, nowotwory, bezdech senny",
+                        PreventionTips = new List<string> { "Deficyt kaloryczny", "Zwiększ aktywność", "Konsultacja dietetyka" }
+                    });
+                }
+                else if (bmi > 25)
+                {
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Nadwaga",
+                        Level = "Umiarkowane",
+                        Description = "BMI 25-30 zwiększa ryzyko rozwoju chorób metabolicznych",
+                        Impact = "Zwiększone ciśnienie, insulinooporność, problemy stawowe",
+                        PreventionTips = new List<string> { "Kontrola porcji", "Regularna aktywność", "Monitorowanie wagi" }
+                    });
+                }
             }
-            else if (bmi > 30)
+            catch (Exception ex)
             {
+                // Dodaj domyślny czynnik ryzyka w przypadku błędu
                 riskFactors.Add(new RiskFactor
                 {
-                    Name = "Otyłość",
-                    Level = "Wysokie",
-                    Description = "BMI powyżej 30 znacznie zwiększa ryzyko chorób przewlekłych",
-                    Impact = "Cukrzyca, choroby serca, nowotwory, bezdech senny",
-                    PreventionTips = new List<string> { "Deficyt kaloryczny", "Zwiększ aktywność", "Konsultacja dietetyka" }
-                });
-            }
-            else if (bmi > 25)
-            {
-                riskFactors.Add(new RiskFactor
-                {
-                    Name = "Nadwaga",
-                    Level = "Umiarkowane",
-                    Description = "BMI 25-30 zwiększa ryzyko rozwoju chorób metabolicznych",
-                    Impact = "Zwiększone ciśnienie, insulinooporność, problemy stawowe",
-                    PreventionTips = new List<string> { "Kontrola porcji", "Regularna aktywność", "Monitorowanie wagi" }
+                    Name = "Nieznane ryzyko wagowe",
+                    Level = "Nieznane",
+                    Description = "Nie można ocenić ryzyka związanego z wagą",
+                    Impact = "Brak danych",
+                    PreventionTips = new List<string> { "Skonsultuj się z lekarzem" }
                 });
             }
         }
 
         private void AnalyzeNutritionalRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4].ToString());
-            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6].ToString());
-            var favc = request.DataFrame_Split.Data[0][11].ToString();
-
-            if (fcvc < 2)
+            try
             {
-                riskFactors.Add(new RiskFactor
+                var data = request.DataFrame_Split.Data[0];
+                var fcvc = Convert.ToDouble(data[4]?.ToString() ?? "2");
+                var ch2o = Convert.ToDouble(data[6]?.ToString() ?? "2");
+                var favc = data[11]?.ToString() ?? "no";
+
+                if (fcvc < 2)
                 {
-                    Name = "Niedobór warzyw w diecie",
-                    Level = "Średnie",
-                    Description = "Niedostateczne spożycie warzyw prowadzi do niedoborów witamin",
-                    Impact = "Niedobory witamin, minerałów, błonnika, zwiększone ryzyko nowotworów",
-                    PreventionTips = new List<string> { "5 porcji warzyw dziennie", "Różnorodność kolorów", "Warzywa w każdym posiłku" }
-                });
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Niedobór warzyw w diecie",
+                        Level = "Średnie",
+                        Description = "Niedostateczne spożycie warzyw prowadzi do niedoborów witamin",
+                        Impact = "Niedobory witamin, minerałów, błonnika, zwiększone ryzyko nowotworów",
+                        PreventionTips = new List<string> { "5 porcji warzyw dziennie", "Różnorodność kolorów", "Warzywa w każdym posiłku" }
+                    });
+                }
+
+                if (ch2o < 2)
+                {
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Niewystarczające nawodnienie",
+                        Level = "Niskie",
+                        Description = "Zbyt małe spożycie wody wpływa na funkcjonowanie organizmu",
+                        Impact = "Problemy z nerkami, zmęczenie, problemy skórne, zaparcia",
+                        PreventionTips = new List<string> { "8 szklanek wody dziennie", "Woda przed posiłkami", "Monitoruj kolor moczu" }
+                    });
+                }
+
+                if (favc.ToLower() == "yes")
+                {
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Wysokokaloryczna dieta",
+                        Level = "Średnie",
+                        Description = "Częste spożycie wysokokalorycznej żywności",
+                        Impact = "Przyrost masy ciała, cukrzyca, choroby serca",
+                        PreventionTips = new List<string> { "Zamień na zdrowe alternatywy", "Kontroluj porcje", "Czytaj etykiety" }
+                    });
+                }
             }
-
-            if (ch2o < 2)
+            catch (Exception ex)
             {
-                riskFactors.Add(new RiskFactor
-                {
-                    Name = "Niewystarczające nawodnienie",
-                    Level = "Niskie",
-                    Description = "Zbyt małe spożycie wody wpływa na funkcjonowanie organizmu",
-                    Impact = "Problemy z nerkami, zmęczenie, problemy skórne, zaparcia",
-                    PreventionTips = new List<string> { "8 szklanek wody dziennie", "Woda przed posiłkami", "Monitoruj kolor moczu" }
-                });
-            }
-
-            if (favc == "yes")
-            {
-                riskFactors.Add(new RiskFactor
-                {
-                    Name = "Wysokokaloryczna dieta",
-                    Level = "Średnie",
-                    Description = "Częste spożycie wysokokalorycznej żywności",
-                    Impact = "Przyrost masy ciała, cukrzyca, choroby serca",
-                    PreventionTips = new List<string> { "Zamień na zdrowe alternatywy", "Kontroluj porcje", "Czytaj etykiety" }
-                });
+                // Błąd w analizie żywieniowej - dodaj ogólny czynnik ryzyka
             }
         }
 
         private void AnalyzeActivityRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
-            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8].ToString());
-
-            if (faf < 2)
+            try
             {
-                riskFactors.Add(new RiskFactor
+                var data = request.DataFrame_Split.Data[0];
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
+                var tue = Convert.ToDouble(data[8]?.ToString() ?? "2");
+
+                if (faf < 2)
                 {
-                    Name = "Siedzący tryb życia",
-                    Level = "Wysokie",
-                    Description = "Brak regularnej aktywności fizycznej",
-                    Impact = "Choroby serca, cukrzyca, osteoporoza, depresja, skrócenie życia",
-                    PreventionTips = new List<string> { "150 min aktywności tygodniowo", "Codzienne spacery", "Ćwiczenia siłowe 2x/tydzień" }
-                });
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Siedzący tryb życia",
+                        Level = "Wysokie",
+                        Description = "Brak regularnej aktywności fizycznej",
+                        Impact = "Choroby serca, cukrzyca, osteoporoza, depresja, skrócenie życia",
+                        PreventionTips = new List<string> { "150 min aktywności tygodniowo", "Codzienne spacery", "Ćwiczenia siłowe 2x/tydzień" }
+                    });
+                }
+
+                if (tue > 8)
+                {
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Nadmierne użycie technologii",
+                        Level = "Średnie",
+                        Description = "Ponad 8 godzin dziennie przy ekranach",
+                        Impact = "Problemy wzroku, ból pleców/szyi, zaburzenia snu, izolacja społeczna",
+                        PreventionTips = new List<string> { "Przerwy co godzinę", "Ergonomiczne stanowisko", "Digital detox" }
+                    });
+                }
             }
-
-            if (tue > 8)
+            catch (Exception ex)
             {
-                riskFactors.Add(new RiskFactor
-                {
-                    Name = "Nadmierne użycie technologii",
-                    Level = "Średnie",
-                    Description = "Ponad 8 godzin dziennie przy ekranach",
-                    Impact = "Problemy wzroku, ból pleców/szyi, zaburzenia snu, izolacja społeczna",
-                    PreventionTips = new List<string> { "Przerwy co godzinę", "Ergonomiczne stanowisko", "Digital detox" }
-                });
+                // Błąd w analizie aktywności
             }
         }
 
         private void AnalyzeLifestyleRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var calc = request.DataFrame_Split.Data[0][15].ToString();
-
-            if (smoke == "yes")
+            try
             {
-                riskFactors.Add(new RiskFactor
+                var data = request.DataFrame_Split.Data[0];
+                var smoke = data[13]?.ToString() ?? "no";
+                var calc = data[15]?.ToString() ?? "no";
+
+                if (smoke.ToLower() == "yes")
                 {
-                    Name = "Palenie tytoniu",
-                    Level = "Bardzo wysokie",
-                    Description = "Palenie jest główną przyczyną chorób przewlekłych",
-                    Impact = "Nowotwory, choroby serca, udar, POCHP, przedwczesna śmierć",
-                    PreventionTips = new List<string> { "Natychmiastowe rzucenie", "Terapia nikotynowa", "Wsparcie psychologiczne" }
-                });
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Palenie tytoniu",
+                        Level = "Bardzo wysokie",
+                        Description = "Palenie jest główną przyczyną chorób przewlekłych",
+                        Impact = "Nowotwory, choroby serca, udar, POCHP, przedwczesna śmierć",
+                        PreventionTips = new List<string> { "Natychmiastowe rzucenie", "Terapia nikotynowa", "Wsparcie psychologiczne" }
+                    });
+                }
+
+                if (calc.ToLower() == "frequently" || calc.ToLower() == "always")
+                {
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Nadmierne spożycie alkoholu",
+                        Level = "Wysokie",
+                        Description = "Częste spożycie alkoholu zwiększa ryzyko chorób",
+                        Impact = "Choroby wątroby, nowotwory, uzależnienie, problemy społeczne",
+                        PreventionTips = new List<string> { "Ogranicz do 1-2 drinków tygodniowo", "Dni bez alkoholu", "Szukaj wsparcia" }
+                    });
+                }
             }
-
-            if (calc == "Frequently" || calc == "Always")
+            catch (Exception ex)
             {
-                riskFactors.Add(new RiskFactor
-                {
-                    Name = "Nadmierne spożycie alkoholu",
-                    Level = "Wysokie",
-                    Description = "Częste lub stałe spożycie alkoholu",
-                    Impact = "Choroby wątroby, nowotwory, uzależnienie, problemy społeczne",
-                    PreventionTips = new List<string> { "Ogranicz do 2 jednostek/tydzień", "Dni bez alkoholu", "Szukaj pomocy" }
-                });
+                // Błąd w analizie stylu życia
             }
         }
 
         private void AnalyzeGeneticRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var familyHistory = request.DataFrame_Split.Data[0][10].ToString();
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-
-            if (familyHistory == "yes")
+            try
             {
-                riskFactors.Add(new RiskFactor
+                var data = request.DataFrame_Split.Data[0];
+                var familyHistory = data[10]?.ToString() ?? "no";
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "25");
+
+                if (familyHistory.ToLower() == "yes")
                 {
-                    Name = "Obciążenie genetyczne",
-                    Level = "Średnie",
-                    Description = "Historia nadwagi/otyłości w rodzinie",
-                    Impact = "Zwiększone predyspozycje do problemów z wagą i chorób metabolicznych",
-                    PreventionTips = new List<string> { "Regularne badania", "Profilaktyka dietetyczna", "Aktywny styl życia" }
-                });
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Predyspozycje genetyczne",
+                        Level = "Średnie",
+                        Description = "Rodzinna historia nadwagi zwiększa ryzyko",
+                        Impact = "Zwiększone ryzyko otyłości, cukrzycy, chorób metabolicznych",
+                        PreventionTips = new List<string> { "Regularne badania", "Profilaktyka żywieniowa", "Aktywny styl życia" }
+                    });
+                }
+
+                if (age > 50)
+                {
+                    riskFactors.Add(new RiskFactor
+                    {
+                        Name = "Wiek powyżej 50 lat",
+                        Level = "Niskie",
+                        Description = "Naturalny proces starzenia zwiększa niektóre ryzyka",
+                        Impact = "Spowolnienie metabolizmu, utrata masy mięśniowej, problemy hormonalne",
+                        PreventionTips = new List<string> { "Regularne badania", "Trening siłowy", "Suplementacja" }
+                    });
+                }
             }
-
-            if (age > 50)
+            catch (Exception ex)
             {
-                riskFactors.Add(new RiskFactor
-                {
-                    Name = "Wiek powyżej 50 lat",
-                    Level = "Niskie",
-                    Description = "Naturalny proces starzenia zwiększa niektóre ryzyka",
-                    Impact = "Spowolnienie metabolizmu, utrata masy mięśniowej, problemy hormonalne",
-                    PreventionTips = new List<string> { "Regularne badania", "Trening siłowy", "Suplementacja" }
-                });
+                // Błąd w analizie genetycznej
             }
         }
 
         private void AnalyzeProtectiveFactors(HealthRequest request, List<string> protectiveFactors)
         {
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4].ToString());
-            var scc = request.DataFrame_Split.Data[0][14].ToString();
-            var calc = request.DataFrame_Split.Data[0][15].ToString();
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
+                var smoke = data[13]?.ToString() ?? "no";
+                var fcvc = Convert.ToDouble(data[4]?.ToString() ?? "2");
+                var scc = data[14]?.ToString() ?? "no";
+                var calc = data[15]?.ToString() ?? "no";
 
-            if (faf >= 3)
-                protectiveFactors.Add("Regularna aktywność fizyczna - silna ochrona przed chorobami przewlekłymi");
+                if (faf >= 3)
+                    protectiveFactors.Add("Regularna aktywność fizyczna - silna ochrona przed chorobami przewlekłymi");
 
-            if (smoke == "no")
-                protectiveFactors.Add("Niepalenie - znacząco zmniejsza ryzyko nowotworów i chorób serca");
+                if (smoke.ToLower() == "no")
+                    protectiveFactors.Add("Niepalenie - znacząco zmniejsza ryzyko nowotworów i chorób serca");
 
-            if (fcvc >= 3)
-                protectiveFactors.Add("Wysokie spożycie warzyw - bogate źródło antyoksydantów i błonnika");
+                if (fcvc >= 3)
+                    protectiveFactors.Add("Wysokie spożycie warzyw - bogate źródło antyoksydantów i błonnika");
 
-            if (scc == "yes")
-                protectiveFactors.Add("Świadome monitorowanie zdrowia - wczesne wykrywanie problemów");
+                if (scc.ToLower() == "yes")
+                    protectiveFactors.Add("Świadome monitorowanie zdrowia - wczesne wykrywanie problemów");
 
-            if (calc == "no")
-                protectiveFactors.Add("Abstynencja alkoholowa - ochrona wątroby i układu nerwowego");
+                if (calc.ToLower() == "no")
+                    protectiveFactors.Add("Abstynencja alkoholowa - ochrona wątroby i układu nerwowego");
+            }
+            catch (Exception ex)
+            {
+                protectiveFactors.Add("Skonsultuj się z lekarzem w sprawie czynników ochronnych");
+            }
         }
 
         private string CalculateOverallRisk(List<RiskFactor> riskFactors)
@@ -430,44 +551,61 @@ namespace MyHealth.Api.Services
         private List<Recommendation> GenerateDietaryRecommendations(HealthRequest request, string prediction)
         {
             var recommendations = new List<Recommendation>();
-            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString());
-            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString());
-            var bmi = weight / (height * height);
+            
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var bmi = weight / (height * height);
 
-            if (bmi > 25)
+                if (bmi > 25)
+                {
+                    recommendations.Add(new Recommendation
+                    {
+                        Category = "Dieta",
+                        Description = "Wprowadź deficyt kaloryczny 500-750 kcal dziennie dla bezpiecznej redukcji wagi",
+                        Priority = 10,
+                        Timeframe = "Natychmiast - długoterminowo",
+                        ExpectedBenefit = "Redukcja 0.5-1 kg tygodniowo, poprawa parametrów metabolicznych",
+                        ActionSteps = new List<string>
+                        {
+                            "Oblicz dzienne zapotrzebowanie kaloryczne",
+                            "Zaplanuj 5-6 mniejszych posiłków dziennie",
+                            "Zwiększ spożycie białka do 1.2-1.6g/kg masy ciała",
+                            "Ogranicz węglowodany proste i tłuszcze nasycone"
+                        }
+                    });
+                }
+
+                recommendations.Add(new Recommendation
+                {
+                    Category = "Nawyki żywieniowe",
+                    Description = "Wprowadź zasadę talerza: 1/2 warzywa, 1/4 białko, 1/4 węglowodany złożone",
+                    Priority = 8,
+                    Timeframe = "1-2 tygodnie na wdrożenie",
+                    ExpectedBenefit = "Lepsze nasycenie, kontrola glikemii, większa różnorodność składników",
+                    ActionSteps = new List<string>
+                    {
+                        "Kup większe talerze dla warzyw",
+                        "Przygotuj warzywa z wyprzedzeniem",
+                        "Wybieraj białko chude (ryby, drób, rośliny strączkowe)",
+                        "Zastąp białe pieczywo pełnoziarnistym"
+                    }
+                });
+            }
+            catch (Exception ex)
             {
                 recommendations.Add(new Recommendation
                 {
                     Category = "Dieta",
-                    Description = "Wprowadź deficyt kaloryczny 500-750 kcal dziennie dla bezpiecznej redukcji wagi",
-                    Priority = 10,
-                    Timeframe = "Natychmiast - długoterminowo",
-                    ExpectedBenefit = "Redukcja 0.5-1 kg tygodniowo, poprawa parametrów metabolicznych",
-                    ActionSteps = new List<string>
-                    {
-                        "Oblicz dzienne zapotrzebowanie kaloryczne",
-                        "Zaplanuj 5-6 mniejszych posiłków dziennie",
-                        "Zwiększ spożycie białka do 1.2-1.6g/kg masy ciała",
-                        "Ogranicz węglowodany proste i tłuszcze nasycone"
-                    }
+                    Description = "Skonsultuj się z dietetykiem w sprawie zdrowej diety",
+                    Priority = 5,
+                    Timeframe = "W ciągu miesiąca",
+                    ExpectedBenefit = "Spersonalizowane zalecenia żywieniowe",
+                    ActionSteps = new List<string> { "Umów wizytę u dietetyka" }
                 });
             }
-
-            recommendations.Add(new Recommendation
-            {
-                Category = "Nawyki żywieniowe",
-                Description = "Wprowadź zasadę talerza: 1/2 warzywa, 1/4 białko, 1/4 węglowodany złożone",
-                Priority = 8,
-                Timeframe = "1-2 tygodnie na wdrożenie",
-                ExpectedBenefit = "Lepsze nasycenie, kontrola glikemii, większa różnorodność składników",
-                ActionSteps = new List<string>
-                {
-                    "Kup większe talerze dla warzyw",
-                    "Przygotuj warzywa z wyprzedzeniem",
-                    "Wybieraj białko chude (ryby, drób, rośliny strączkowe)",
-                    "Zastąp białe pieczywo pełnoziarnistym"
-                }
-            });
 
             return recommendations;
         }
@@ -475,24 +613,41 @@ namespace MyHealth.Api.Services
         private List<Recommendation> GenerateActivityRecommendations(HealthRequest request, string prediction)
         {
             var recommendations = new List<Recommendation>();
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
+            
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
 
-            if (faf < 2)
+                if (faf < 2)
+                {
+                    recommendations.Add(new Recommendation
+                    {
+                        Category = "Aktywność fizyczna",
+                        Description = "Rozpocznij program aktywności od 150 minut umiarkowanej aktywności tygodniowo",
+                        Priority = 9,
+                        Timeframe = "Stopniowe wprowadzanie przez 4-6 tygodni",
+                        ExpectedBenefit = "Poprawa kondycji, redukcja ryzyka chorób, lepsze samopoczucie",
+                        ActionSteps = new List<string>
+                        {
+                            "Tydzień 1-2: 15 minut spaceru dziennie",
+                            "Tydzień 3-4: 25 minut aktywności dziennie",
+                            "Tydzień 5-6: 30 minut aktywności + 2x trening siłowy",
+                            "Znajdź aktywność, która sprawia Ci przyjemność"
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
             {
                 recommendations.Add(new Recommendation
                 {
                     Category = "Aktywność fizyczna",
-                    Description = "Rozpocznij program aktywności od 150 minut umiarkowanej aktywności tygodniowo",
-                    Priority = 9,
-                    Timeframe = "Stopniowe wprowadzanie przez 4-6 tygodni",
-                    ExpectedBenefit = "Poprawa kondycji, redukcja ryzyka chorób, lepsze samopoczucie",
-                    ActionSteps = new List<string>
-                    {
-                        "Tydzień 1-2: 15 minut spaceru dziennie",
-                        "Tydzień 3-4: 25 minut aktywności dziennie",
-                        "Tydzień 5-6: 30 minut aktywności + 2x trening siłowy",
-                        "Znajdź aktywność, która sprawia Ci przyjemność"
-                    }
+                    Description = "Wprowadź regularną aktywność fizyczną",
+                    Priority = 7,
+                    Timeframe = "Stopniowo",
+                    ExpectedBenefit = "Poprawa kondycji i zdrowia",
+                    ActionSteps = new List<string> { "Zacznij od codziennych spacerów" }
                 });
             }
 
@@ -502,25 +657,44 @@ namespace MyHealth.Api.Services
         private List<Recommendation> GenerateMedicalRecommendations(HealthRequest request, string prediction)
         {
             var recommendations = new List<Recommendation>();
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString()) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString()), 2);
+            
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "25");
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var bmi = weight / (height * height);
 
-            if (bmi > 30 || age > 50)
+                if (bmi > 30 || age > 50)
+                {
+                    recommendations.Add(new Recommendation
+                    {
+                        Category = "Badania medyczne",
+                        Description = "Wykonaj kompleksowe badania krwi i konsultację lekarską",
+                        Priority = 7,
+                        Timeframe = "W ciągu 2-4 tygodni",
+                        ExpectedBenefit = "Wczesne wykrycie problemów, spersonalizowane zalecenia",
+                        ActionSteps = new List<string>
+                        {
+                            "Umów wizytę u lekarza rodzinnego",
+                            "Wykonaj morfologię, biochemię, lipidogram",
+                            "Sprawdź poziom witaminy D i B12",
+                            "Rozważ badanie tarczycy (TSH, fT3, fT4)"
+                        }
+                    });
+                }
+            }
+            catch (Exception ex)
             {
                 recommendations.Add(new Recommendation
                 {
                     Category = "Badania medyczne",
-                    Description = "Wykonaj kompleksowe badania krwi i konsultację lekarską",
-                    Priority = 7,
-                    Timeframe = "W ciągu 2-4 tygodni",
-                    ExpectedBenefit = "Wczesne wykrycie problemów, spersonalizowane zalecenia",
-                    ActionSteps = new List<string>
-                    {
-                        "Umów wizytę u lekarza rodzinnego",
-                        "Wykonaj morfologię, lipidogram, glukozę",
-                        "Sprawdź ciśnienie krwi i BMI",
-                        "Omów wyniki i plan działania z lekarzem"
-                    }
+                    Description = "Regularne badania kontrolne",
+                    Priority = 5,
+                    Timeframe = "Raz w roku",
+                    ExpectedBenefit = "Monitorowanie stanu zdrowia",
+                    ActionSteps = new List<string> { "Umów wizytę kontrolną u lekarza" }
                 });
             }
 
@@ -554,20 +728,31 @@ namespace MyHealth.Api.Services
         private List<string> GenerateImmediateActions(HealthRequest request, string prediction)
         {
             var actions = new List<string>();
-            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString()) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString()), 2);
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
+            
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var smoke = data[13]?.ToString() ?? "no";
+                var bmi = weight / (height * height);
 
-            actions.Add("Zainstaluj aplikację do śledzenia kalorii i aktywności");
-            actions.Add("Kup wagę i rozpocznij codzienne ważenie się");
-            actions.Add("Zaplanuj posiłki na najbliższe 3 dni");
+                actions.Add("Zainstaluj aplikację do śledzenia kalorii i aktywności");
+                actions.Add("Kup wagę i rozpocznij codzienne ważenie się");
+                actions.Add("Zaplanuj posiłki na najbliższe 3 dni");
 
-            if (smoke == "yes")
-                actions.Add("PILNE: Skontaktuj się z lekarzem w sprawie rzucenia palenia");
+                if (smoke.ToLower() == "yes")
+                    actions.Add("PILNE: Skontaktuj się z lekarzem w sprawie rzucenia palenia");
 
-            if (bmi > 30)
-                actions.Add("Umów wizytę u lekarza i dietetyka w ciągu 2 tygodni");
+                if (bmi > 30)
+                    actions.Add("Umów wizytę u lekarza i dietetyka w ciągu 2 tygodni");
 
-            actions.Add("Rozpocznij od 15-minutowego spaceru dzisiaj");
+                actions.Add("Rozpocznij od 15-minutowego spaceru dzisiaj");
+            }
+            catch (Exception ex)
+            {
+                actions.Add("Skonsultuj się z lekarzem w sprawie natychmiastowych działań");
+            }
 
             return actions;
         }
@@ -575,15 +760,26 @@ namespace MyHealth.Api.Services
         private List<string> GenerateShortTermGoals(HealthRequest request, string prediction)
         {
             var goals = new List<string>();
-            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString()) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString()), 2);
+            
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var bmi = weight / (height * height);
 
-            if (bmi > 25)
-                goals.Add("Redukcja wagi o 2-4 kg w ciągu pierwszych 2 miesięcy");
+                if (bmi > 25)
+                    goals.Add("Redukcja wagi o 2-4 kg w ciągu pierwszych 2 miesięcy");
 
-            goals.Add("Osiągnięcie 150 minut aktywności fizycznej tygodniowo");
-            goals.Add("Wprowadzenie 5 porcji warzyw i owoców dziennie");
-            goals.Add("Redukcja czasu ekranowego o 25%");
-            goals.Add("Wykonanie kompleksowych badań krwi");
+                goals.Add("Osiągnięcie 150 minut aktywności fizycznej tygodniowo");
+                goals.Add("Wprowadzenie 5 porcji warzyw i owoców dziennie");
+                goals.Add("Redukcja czasu ekranowego o 25%");
+                goals.Add("Wykonanie kompleksowych badań krwi");
+            }
+            catch (Exception ex)
+            {
+                goals.Add("Ustaw realistyczne cele zdrowotne z pomocą specjalisty");
+            }
 
             return goals;
         }
@@ -591,15 +787,26 @@ namespace MyHealth.Api.Services
         private List<string> GenerateLongTermGoals(HealthRequest request, string prediction)
         {
             var goals = new List<string>();
-            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString()) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString()), 2);
+            
+            try
+            {
+                var data = request.DataFrame_Split.Data[0];
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var bmi = weight / (height * height);
 
-            if (bmi > 25)
-                goals.Add("Osiągnięcie i utrzymanie zdrowej wagi (BMI 18.5-24.9)");
+                if (bmi > 25)
+                    goals.Add("Osiągnięcie i utrzymanie zdrowej wagi (BMI 18.5-24.9)");
 
-            goals.Add("Budowa nawyku regularnej aktywności fizycznej (300+ min/tydzień)");
-            goals.Add("Osiągnięcie optymalnych parametrów krwi (glukoza, cholesterol)");
-            goals.Add("Redukcja ryzyka chorób przewlekłych o 50%");
-            goals.Add("Poprawa jakości życia i energii o 40%");
+                goals.Add("Budowa nawyku regularnej aktywności fizycznej (300+ min/tydzień)");
+                goals.Add("Osiągnięcie optymalnych parametrów krwi (glukoza, cholesterol)");
+                goals.Add("Redukcja ryzyka chorób przewlekłych o 50%");
+                goals.Add("Poprawa jakości życia i energii o 40%");
+            }
+            catch (Exception ex)
+            {
+                goals.Add("Opracuj długoterminowy plan zdrowotny z lekarzem");
+            }
 
             return goals;
         }
@@ -660,25 +867,35 @@ namespace MyHealth.Api.Services
 
         private string GetHealthPrognosis(HealthRequest request, string prediction)
         {
-            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1].ToString());
-            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3].ToString()) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2].ToString()), 2);
-            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7].ToString());
-            var smoke = request.DataFrame_Split.Data[0][13].ToString();
-
-            var prognosisFactors = 0;
-            if (bmi >= 18.5 && bmi <= 24.9) prognosisFactors++;
-            if (faf >= 3) prognosisFactors++;
-            if (smoke == "no") prognosisFactors++;
-            if (age < 50) prognosisFactors++;
-
-            return prognosisFactors switch
+            try
             {
-                4 => "Doskonała - przy utrzymaniu obecnych nawyków możesz cieszyć się długim i zdrowym życiem",
-                3 => "Bardzo dobra - niewielkie zmiany mogą znacząco poprawić Twoje zdrowie",
-                2 => "Dobra - wprowadzenie zdrowych nawyków przyniesie wymierne korzyści",
-                1 => "Umiarkowana - wymagane znaczące zmiany stylu życia",
-                _ => "Wymagana natychmiastowa interwencja - wysokie ryzyko powikłań zdrowotnych"
-            };
+                var data = request.DataFrame_Split.Data[0];
+                var age = Convert.ToInt32(data[1]?.ToString() ?? "25");
+                var height = Convert.ToDouble(data[2]?.ToString() ?? "1.7");
+                var weight = Convert.ToDouble(data[3]?.ToString() ?? "70");
+                var faf = Convert.ToDouble(data[7]?.ToString() ?? "1");
+                var smoke = data[13]?.ToString() ?? "no";
+                var bmi = weight / (height * height);
+
+                var prognosisFactors = 0;
+                if (bmi >= 18.5 && bmi <= 24.9) prognosisFactors++;
+                if (faf >= 3) prognosisFactors++;
+                if (smoke.ToLower() == "no") prognosisFactors++;
+                if (age < 50) prognosisFactors++;
+
+                return prognosisFactors switch
+                {
+                    4 => "Doskonała - przy utrzymaniu obecnych nawyków możesz cieszyć się długim i zdrowym życiem",
+                    3 => "Bardzo dobra - niewielkie zmiany mogą znacząco poprawić Twoje zdrowie",
+                    2 => "Dobra - wprowadzenie zdrowych nawyków przyniesie wymierne korzyści",
+                    1 => "Umiarkowana - wymagane znaczące zmiany stylu życia",
+                    _ => "Wymagana natychmiastowa interwencja - wysokie ryzyko powikłań zdrowotnych"
+                };
+            }
+            catch (Exception ex)
+            {
+                return "Nieznana - skonsultuj się z lekarzem w sprawie prognozy zdrowotnej";
+            }
         }
     }
 } 
