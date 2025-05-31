@@ -18,8 +18,33 @@ jobs:
       frontend: ${{ steps.changes.outputs.frontend }}
       api: ${{ steps.changes.outputs.api }}
       ml-model: ${{ steps.changes.outputs.ml-model }}
+      commit-sha: ${{ steps.commit-info.outputs.sha }}
+      commit-message: ${{ steps.commit-info.outputs.message }}
+      force-api-deploy: ${{ steps.check-critical.outputs.force-api }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Pobierz pełną historię żeby paths-filter działał poprawnie
+
+      - name: Get commit info
+        id: commit-info
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+          echo "🔍 Current commit: $(git rev-parse HEAD)"
+          echo "📝 Commit message: $(git log -1 --pretty=%B)"
+
+      - name: Check for critical fixes
+        id: check-critical
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ "$COMMIT_MSG" == *"Fix"* ]] || [[ "$COMMIT_MSG" == *"NullReference"* ]] || [[ "$COMMIT_MSG" == *"Exception"* ]] || [[ "$COMMIT_MSG" == *"fix"* ]]; then
+            echo "🚨 Critical fix detected in commit message - forcing API deployment"
+            echo "force-api=true" >> $GITHUB_OUTPUT
+          else
+            echo "force-api=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: dorny/paths-filter@v2
         id: changes
         with:
@@ -37,6 +62,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify commit
+        run: |
+          echo "🔍 Deploying ML Model from commit: $(git rev-parse HEAD)"
+          echo "📝 Commit message: $(git log -1 --pretty=%B)"
 
       - name: Login to Azure
         uses: azure/login@v1
@@ -49,22 +81,33 @@ jobs:
       - name: Build and push ML Model
         run: |
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          COMMIT_SHA=$(git rev-parse --short HEAD)
           ACR_SERVER=$(az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "loginServer" --output tsv)
 
-          docker build -t $ACR_SERVER/ml-model:$TIMESTAMP ./ml-model
-          docker push $ACR_SERVER/ml-model:$TIMESTAMP
+          echo "🏗️ Building ML Model with tag: $TIMESTAMP-$COMMIT_SHA"
+          docker build -t $ACR_SERVER/ml-model:$TIMESTAMP-$COMMIT_SHA ./ml-model
+          docker push $ACR_SERVER/ml-model:$TIMESTAMP-$COMMIT_SHA
 
+          echo "🚀 Updating ML Model container app"
           az containerapp update \
             --name myhealth-ml-model \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image $ACR_SERVER/ml-model:$TIMESTAMP
+            --image $ACR_SERVER/ml-model:$TIMESTAMP-$COMMIT_SHA
 
   deploy-api:
     needs: [detect-changes, deploy-ml-model]
-    if: always() && (needs.detect-changes.outputs.api == 'true' || needs.deploy-ml-model.result == 'success')
+    if: always() && (needs.detect-changes.outputs.api == 'true' || needs.detect-changes.outputs.force-api-deploy == 'true' || needs.deploy-ml-model.result == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify commit
+        run: |
+          echo "🔍 Deploying API from commit: $(git rev-parse HEAD)"
+          echo "📝 Commit message: $(git log -1 --pretty=%B)"
+          echo "🔧 This should include NullReferenceException fixes from commit ecc4f37"
 
       - name: Login to Azure
         uses: azure/login@v1
@@ -77,18 +120,21 @@ jobs:
       - name: Build and push API
         run: |
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          COMMIT_SHA=$(git rev-parse --short HEAD)
           ACR_SERVER=$(az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "loginServer" --output tsv)
 
-          docker build -t $ACR_SERVER/api:$TIMESTAMP ./MyHealth.Api
-          docker push $ACR_SERVER/api:$TIMESTAMP
+          echo "🏗️ Building API with tag: $TIMESTAMP-$COMMIT_SHA"
+          docker build -t $ACR_SERVER/api:$TIMESTAMP-$COMMIT_SHA ./MyHealth.Api
+          docker push $ACR_SERVER/api:$TIMESTAMP-$COMMIT_SHA
 
           # Pobierz ML Model URL
           ML_MODEL_URL=$(az containerapp show --name myhealth-ml-model --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
 
+          echo "🚀 Updating API container app with ML_MODEL_URL=https://$ML_MODEL_URL"
           az containerapp update \
             --name myhealth-api \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image $ACR_SERVER/api:$TIMESTAMP \
+            --image $ACR_SERVER/api:$TIMESTAMP-$COMMIT_SHA \
             --set-env-vars ML_MODEL_URL=https://$ML_MODEL_URL
 
   deploy-frontend:
@@ -97,6 +143,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify commit
+        run: |
+          echo "🔍 Deploying Frontend from commit: $(git rev-parse HEAD)"
+          echo "📝 Commit message: $(git log -1 --pretty=%B)"
 
       - name: Login to Azure
         uses: azure/login@v1
@@ -109,22 +162,25 @@ jobs:
       - name: Build and push Frontend
         run: |
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          COMMIT_SHA=$(git rev-parse --short HEAD)
           ACR_SERVER=$(az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "loginServer" --output tsv)
 
-          docker build -t $ACR_SERVER/frontend:$TIMESTAMP ./health-frontend
-          docker push $ACR_SERVER/frontend:$TIMESTAMP
+          echo "🏗️ Building Frontend with tag: $TIMESTAMP-$COMMIT_SHA"
+          docker build -t $ACR_SERVER/frontend:$TIMESTAMP-$COMMIT_SHA ./health-frontend
+          docker push $ACR_SERVER/frontend:$TIMESTAMP-$COMMIT_SHA
 
           # Pobierz API URL
           API_URL=$(az containerapp show --name myhealth-api --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
 
+          echo "🚀 Updating Frontend container app with API_URL=https://$API_URL/api/health/assess-advanced"
           az containerapp update \
             --name myhealth-frontend \
             --resource-group ${{ env.RESOURCE_GROUP }} \
-            --image $ACR_SERVER/frontend:$TIMESTAMP \
+            --image $ACR_SERVER/frontend:$TIMESTAMP-$COMMIT_SHA \
             --set-env-vars NEXT_PUBLIC_API_URL=https://$API_URL/api/health/assess-advanced
 
   notify-success:
-    needs: [deploy-ml-model, deploy-api, deploy-frontend]
+    needs: [detect-changes, deploy-ml-model, deploy-api, deploy-frontend]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -133,9 +189,16 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Get Frontend URL
+      - name: Get deployment info
         if: needs.deploy-frontend.result == 'success' || needs.deploy-api.result == 'success'
         run: |
           FRONTEND_URL=$(az containerapp show --name myhealth-frontend --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
           echo "🎉 Deployment completed!"
+          echo "🔍 Deployed commit: ${{ needs.detect-changes.outputs.commit-sha }}"
+          echo "📝 Commit message: ${{ needs.detect-changes.outputs.commit-message }}"
           echo "🌐 Application URL: https://$FRONTEND_URL"
+          echo ""
+          echo "📊 Deployment status:"
+          echo "  ML Model: ${{ needs.deploy-ml-model.result }}"
+          echo "  API: ${{ needs.deploy-api.result }}"
+          echo "  Frontend: ${{ needs.deploy-frontend.result }}"
