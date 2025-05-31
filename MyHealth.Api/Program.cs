@@ -20,12 +20,12 @@ builder.Services.AddCors(options =>
     });
 });
 
-// klient HTTP do Databricks
-builder.Services.AddHttpClient<IModelClient, DatabricksModelClient>(
+// ZMIANA: klient HTTP do lokalnego modelu ML zamiast Databricks
+builder.Services.AddHttpClient<IModelClient, LocalModelClient>(
     client =>
     {
-        client.BaseAddress = new Uri(
-            builder.Configuration["Databricks:Endpoint"]);
+        client.BaseAddress = new Uri("http://ml-model:5000"); // Port wewnętrzny kontenera
+        client.Timeout = TimeSpan.FromSeconds(30); // Timeout dla predykcji
     });
 
 // serwis zdrowotny

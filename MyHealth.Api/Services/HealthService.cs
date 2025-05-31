@@ -54,5 +54,60 @@ namespace MyHealth.Api.Services
 
             return new HealthResponse { Assessments = assessments };
         }
+
+        public async Task<HealthResponse> AssessSimpleAsync(
+            SimpleHealthRequest request)
+        {
+            // Konwertuj SimpleHealthRequest na HealthRequest
+            var healthRequest = new HealthRequest
+            {
+                DataFrame_Split = new DataFrameSplit
+                {
+                    Columns = new[]
+                    {
+                        "Age", "Gender", "Height", "Weight", "FCVC", "NCP", "CH2O", 
+                        "FAF", "TUE", "family_history_with_overweight", "FAVC", 
+                        "CAEC", "SMOKE", "SCC", "CALC", "MTRANS"
+                    },
+                    Data = new object[][]
+                    {
+                        new object[]
+                        {
+                            request.Age,
+                            request.Gender,
+                            request.Height,
+                            request.Weight,
+                            request.VegetableConsumption,
+                            request.NumberOfMeals,
+                            request.WaterConsumption,
+                            request.PhysicalActivityFrequency,
+                            request.TechnologyTime,
+                            request.FamilyHistoryOverweight ? "yes" : "no",
+                            request.HighCalorieFood ? "yes" : "no",
+                            "Sometimes", // CAEC - domyślna wartość
+                            request.Smoking ? "yes" : "no",
+                            request.CalorieMonitoring ? "yes" : "no",
+                            "Sometimes", // CALC - domyślna wartość
+                            MapTransportation(request.Transportation)
+                        }
+                    }
+                }
+            };
+
+            // Użyj istniejącej metody
+            return await AssessAsync(healthRequest);
+        }
+
+        private string MapTransportation(int transportation)
+        {
+            return transportation switch
+            {
+                0 => "Walking",
+                1 => "Public_Transportation",
+                2 => "Automobile",
+                3 => "Bike",
+                _ => "Public_Transportation"
+            };
+        }
     }
 }

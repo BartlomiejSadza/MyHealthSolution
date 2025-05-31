@@ -6,5 +6,6 @@ namespace MyHealth.Api.Services
     public interface IHealthService
     {
         Task<HealthResponse> AssessAsync(HealthRequest request);
+        Task<HealthResponse> AssessSimpleAsync(SimpleHealthRequest request);
     }
 }

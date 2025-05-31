@@ -1,33 +1,17 @@
-FROM node:18-alpine AS deps
+FROM node:18
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci
 
-FROM node:18-alpine AS builder
-WORKDIR /app
+# Copy source code
 COPY . .
-COPY --from=deps /app/node_modules ./node_modules
+
+# Build the application
+ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
-
-FROM node:18-alpine AS runner
-WORKDIR /app
-
-ENV NODE_ENV production
-
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/next.config.ts ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/package.json ./package.json
-
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
-
-CMD ["node", "server.js"] 
+CMD ["npm", "start"]

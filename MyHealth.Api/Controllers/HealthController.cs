@@ -12,11 +12,25 @@ namespace MyHealth.Api.Controllers
         private readonly IHealthService _svc;
         public HealthController(IHealthService svc) => _svc = svc;
 
+        [HttpGet]
+        public IActionResult Health()
+        {
+            return Ok(new { status = "healthy", timestamp = DateTime.UtcNow });
+        }
+
         [HttpPost("assess")]
         public async Task<ActionResult<HealthResponse>> Assess(
             [FromBody] HealthRequest req)
         {
             var result = await _svc.AssessAsync(req);
+            return Ok(result);
+        }
+
+        [HttpPost("assess-simple")]
+        public async Task<ActionResult<HealthResponse>> AssessSimple(
+            [FromBody] SimpleHealthRequest req)
+        {
+            var result = await _svc.AssessSimpleAsync(req);
             return Ok(result);
         }
     }
