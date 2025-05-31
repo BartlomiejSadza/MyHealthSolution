@@ -7,24 +7,51 @@ namespace MyHealth.Api.Services
     {
         public AdvancedHealthAnalysisResult AnalyzeHealth(HealthRequest request, List<AssessmentItem> assessments)
         {
-            var prediction = assessments.FirstOrDefault()?.Prediction ?? "Unknown";
-            
-            var result = new AdvancedHealthAnalysisResult
+            try
             {
-                Prediction = prediction,
-                PersonalProfile = BuildPersonalProfile(request),
-                BmiAnalysis = AnalyzeBMI(request),
-                NutritionalAnalysis = AnalyzeNutrition(request),
-                PhysicalActivityAnalysis = AnalyzePhysicalActivity(request),
-                LifestyleAnalysis = AnalyzeLifestyle(request),
-                RiskFactorAnalysis = AnalyzeRiskFactors(request),
-                Recommendations = GenerateRecommendations(request, prediction),
-                ActionPlan = GenerateActionPlan(request, prediction),
-                HealthScore = CalculateHealthScore(request),
-                DetailedDescription = GenerateDetailedDescription(request, prediction)
-            };
+                var prediction = assessments.FirstOrDefault()?.Prediction ?? "Unknown";
+                
+                var result = new AdvancedHealthAnalysisResult
+                {
+                    Prediction = prediction
+                };
 
-            return result;
+                try { result.PersonalProfile = BuildPersonalProfile(request); }
+                catch (Exception ex) { throw new Exception($"Error in BuildPersonalProfile: {ex.Message}", ex); }
+
+                try { result.BmiAnalysis = AnalyzeBMI(request); }
+                catch (Exception ex) { throw new Exception($"Error in AnalyzeBMI: {ex.Message}", ex); }
+
+                try { result.NutritionalAnalysis = AnalyzeNutrition(request); }
+                catch (Exception ex) { throw new Exception($"Error in AnalyzeNutrition: {ex.Message}", ex); }
+
+                try { result.PhysicalActivityAnalysis = AnalyzePhysicalActivity(request); }
+                catch (Exception ex) { throw new Exception($"Error in AnalyzePhysicalActivity: {ex.Message}", ex); }
+
+                try { result.LifestyleAnalysis = AnalyzeLifestyle(request); }
+                catch (Exception ex) { throw new Exception($"Error in AnalyzeLifestyle: {ex.Message}", ex); }
+
+                try { result.RiskFactorAnalysis = AnalyzeRiskFactors(request); }
+                catch (Exception ex) { throw new Exception($"Error in AnalyzeRiskFactors: {ex.Message}", ex); }
+
+                try { result.Recommendations = GenerateRecommendations(request, prediction); }
+                catch (Exception ex) { throw new Exception($"Error in GenerateRecommendations: {ex.Message}", ex); }
+
+                try { result.ActionPlan = GenerateActionPlan(request, prediction); }
+                catch (Exception ex) { throw new Exception($"Error in GenerateActionPlan: {ex.Message}", ex); }
+
+                try { result.HealthScore = CalculateHealthScore(request); }
+                catch (Exception ex) { throw new Exception($"Error in CalculateHealthScore: {ex.Message}", ex); }
+
+                try { result.DetailedDescription = GenerateDetailedDescription(request, prediction); }
+                catch (Exception ex) { throw new Exception($"Error in GenerateDetailedDescription: {ex.Message}", ex); }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error in AdvancedHealthAnalyzer.AnalyzeHealth: {ex.Message}", ex);
+            }
         }
 
         private PersonalProfile BuildPersonalProfile(HealthRequest request)
