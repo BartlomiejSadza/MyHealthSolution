@@ -3,6 +3,10 @@ import pandas as pd
 import numpy as np
 import os
 import logging
+import warnings
+
+# Wyłącz ostrzeżenia
+warnings.filterwarnings('ignore')
 
 # Konfiguracja logowania
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +36,6 @@ class HealthPredictor:
         
         model_path = None
         for path in possible_paths:
-            logger.info(f"Sprawdzam ścieżkę: {path}")
             if os.path.exists(path):
                 model_path = path
                 logger.info(f"Znaleziono model w: {path}")
@@ -50,11 +53,7 @@ class HealthPredictor:
             file_size = os.path.getsize(model_path)
             logger.info(f"Rozmiar pliku modelu: {file_size / (1024*1024):.1f} MB")
             
-            # Jeśli plik jest bardzo duży, może być problemem
-            if file_size > 50 * 1024 * 1024:  # 50MB
-                logger.warning("Model jest bardzo duży - może być problem z ładowaniem")
-            
-            # Spróbuj załadować model - jeśli się nie uda, użyj dummy
+            # Spróbuj załadować model
             with open(model_path, 'rb') as f:
                 loaded_object = pickle.load(f)
                 
@@ -63,14 +62,15 @@ class HealthPredictor:
                 
                 if hasattr(loaded_object, 'predict'):
                     self.model = loaded_object
-                    logger.info("Model gotowy do predykcji")
+                    logger.info("✅ Prawdziwy model XGBoost gotowy do predykcji!")
+                    self.use_dummy = False
                 else:
                     logger.warning("Model nie ma metody predict - używam dummy")
                     self.use_dummy = True
                     
         except Exception as e:
-            logger.error(f"Błąd ładowania modelu: {str(e)}")
-            logger.warning("Przechodzę na dummy model")
+            logger.error(f"❌ Błąd ładowania modelu: {str(e)}")
+            logger.warning("🔄 Przechodzę na dummy model")
             self.use_dummy = True
     
     def predict(self, features_dict):
@@ -83,15 +83,15 @@ class HealthPredictor:
         try:
             # Spróbuj użyć prawdziwego modelu
             df = pd.DataFrame([features_dict])
-            logger.info(f"DataFrame dla modelu: {df.shape}")
+            logger.info(f"🚀 Używam prawdziwego modelu XGBoost")
             
             predictions = self.model.predict(df)
-            logger.info(f"Predykcja z prawdziwego modelu: {predictions}")
+            logger.info(f"✅ Predykcja z XGBoost: {predictions}")
             return predictions
             
         except Exception as e:
-            logger.error(f"Błąd predykcji z prawdziwego modelu: {str(e)}")
-            logger.warning("Używam dummy predykcji")
+            logger.error(f"❌ Błąd predykcji z XGBoost: {str(e)}")
+            logger.warning("🔄 Używam dummy predykcji")
             return self._dummy_predict(features_dict)
     
     def _dummy_predict(self, features_dict):
@@ -131,9 +131,9 @@ class HealthPredictor:
             else:
                 result = "Obesity_Type_III"
                 
-            logger.info(f"Dummy predykcja: BMI={bmi:.1f}, wiek={age}, aktywność={activity} -> {result}")
+            logger.info(f"🤖 Dummy predykcja: BMI={bmi:.1f}, wiek={age}, aktywność={activity} -> {result}")
             return np.array([result])
             
         except Exception as e:
-            logger.error(f"Błąd w dummy predykcji: {str(e)}")
+            logger.error(f"❌ Błąd w dummy predykcji: {str(e)}")
             return np.array(["Normal_Weight"])

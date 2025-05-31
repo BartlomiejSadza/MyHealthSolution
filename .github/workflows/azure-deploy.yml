@@ -1,0 +1,137 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  RESOURCE_GROUP: rg-myhealth
+  REGISTRY_NAME: myhealthregistry
+  CONTAINER_APP_ENV: myhealth-env
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      api: ${{ steps.changes.outputs.api }}
+      ml-model: ${{ steps.changes.outputs.ml-model }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            frontend:
+              - 'health-frontend/**'
+            api:
+              - 'MyHealth.Api/**'
+            ml-model:
+              - 'ml-model/**'
+
+  deploy-ml-model:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ml-model == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ env.REGISTRY_NAME }}
+
+      - name: Build and push ML Model
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          ACR_SERVER=$(az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "loginServer" --output tsv)
+
+          docker build -t $ACR_SERVER/ml-model:$TIMESTAMP ./ml-model
+          docker push $ACR_SERVER/ml-model:$TIMESTAMP
+
+          az containerapp update \
+            --name myhealth-ml-model \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image $ACR_SERVER/ml-model:$TIMESTAMP
+
+  deploy-api:
+    needs: [detect-changes, deploy-ml-model]
+    if: always() && (needs.detect-changes.outputs.api == 'true' || needs.deploy-ml-model.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ env.REGISTRY_NAME }}
+
+      - name: Build and push API
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          ACR_SERVER=$(az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "loginServer" --output tsv)
+
+          docker build -t $ACR_SERVER/api:$TIMESTAMP ./MyHealth.Api
+          docker push $ACR_SERVER/api:$TIMESTAMP
+
+          # Pobierz ML Model URL
+          ML_MODEL_URL=$(az containerapp show --name myhealth-ml-model --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
+
+          az containerapp update \
+            --name myhealth-api \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image $ACR_SERVER/api:$TIMESTAMP \
+            --set-env-vars ML_MODEL_URL=https://$ML_MODEL_URL
+
+  deploy-frontend:
+    needs: [detect-changes, deploy-api]
+    if: always() && (needs.detect-changes.outputs.frontend == 'true' || needs.deploy-api.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ env.REGISTRY_NAME }}
+
+      - name: Build and push Frontend
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          ACR_SERVER=$(az acr show --name ${{ env.REGISTRY_NAME }} --resource-group ${{ env.RESOURCE_GROUP }} --query "loginServer" --output tsv)
+
+          docker build -t $ACR_SERVER/frontend:$TIMESTAMP ./health-frontend
+          docker push $ACR_SERVER/frontend:$TIMESTAMP
+
+          # Pobierz API URL
+          API_URL=$(az containerapp show --name myhealth-api --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
+
+          az containerapp update \
+            --name myhealth-frontend \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image $ACR_SERVER/frontend:$TIMESTAMP \
+            --set-env-vars NEXT_PUBLIC_API_URL=https://$API_URL/api/health/assess-simple
+
+  notify-success:
+    needs: [deploy-ml-model, deploy-api, deploy-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Frontend URL
+        if: needs.deploy-frontend.result == 'success' || needs.deploy-api.result == 'success'
+        run: |
+          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+          FRONTEND_URL=$(az containerapp show --name myhealth-frontend --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
+          echo "🎉 Deployment completed!"
+          echo "🌐 Application URL: https://$FRONTEND_URL"
