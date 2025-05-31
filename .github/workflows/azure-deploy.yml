@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  RESOURCE_GROUP: rg-myhealth
+  RESOURCE_GROUP: rg-myhealth-fixed
   REGISTRY_NAME: myhealthregistry
   CONTAINER_APP_ENV: myhealth-env
 
