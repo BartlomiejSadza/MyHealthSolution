@@ -7,5 +7,6 @@ namespace MyHealth.Api.Services
     {
         Task<HealthResponse> AssessAsync(HealthRequest request);
         Task<HealthResponse> AssessSimpleAsync(SimpleHealthRequest request);
+        Task<AdvancedHealthAnalysisResult> AssessAdvancedHealthAsync(HealthRequest request);
     }
 }

@@ -11,10 +11,12 @@ namespace MyHealth.Api.Services
     {
         private readonly IModelClient _modelClient;
         private readonly IDictionary<string, string> _descriptions;
+        private readonly AdvancedHealthAnalyzer _analyzer;
 
-        public HealthService(IModelClient modelClient, IConfiguration cfg)
+        public HealthService(IModelClient modelClient, IConfiguration cfg, AdvancedHealthAnalyzer analyzer)
         {
             _modelClient = modelClient;
+            _analyzer = analyzer;
             _descriptions = cfg.GetSection("HealthDescriptions")
                                .Get<Dictionary<string, string>>();
         }
@@ -53,6 +55,24 @@ namespace MyHealth.Api.Services
             }
 
             return new HealthResponse { Assessments = assessments };
+        }
+
+        public async Task<AdvancedHealthAnalysisResult> AssessAdvancedHealthAsync(HealthRequest request)
+        {
+            try
+            {
+                // Najpierw pobierz podstawową predykcję
+                var basicResult = await AssessAsync(request);
+                
+                // Następnie wykonaj zaawansowaną analizę
+                var advancedResult = _analyzer.AnalyzeHealth(request, basicResult.Assessments);
+                
+                return advancedResult;
+            }
+            catch (System.Exception ex)
+            {
+                throw new System.Exception($"Błąd podczas zaawansowanej analizy zdrowotnej: {ex.Message}", ex);
+            }
         }
 
         public async Task<HealthResponse> AssessSimpleAsync(
