@@ -128,10 +128,14 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Get Frontend URL
         if: needs.deploy-frontend.result == 'success' || needs.deploy-api.result == 'success'
         run: |
-          az login --service-principal -u ${{ secrets.AZURE_CLIENT_ID }} -p ${{ secrets.AZURE_CLIENT_SECRET }} --tenant ${{ secrets.AZURE_TENANT_ID }}
           FRONTEND_URL=$(az containerapp show --name myhealth-frontend --resource-group ${{ env.RESOURCE_GROUP }} --query "properties.configuration.ingress.fqdn" --output tsv)
           echo "🎉 Deployment completed!"
           echo "🌐 Application URL: https://$FRONTEND_URL"
