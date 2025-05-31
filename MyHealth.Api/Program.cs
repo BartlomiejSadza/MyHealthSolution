@@ -24,6 +24,18 @@ builder.Services.AddCors(options =>
         .AllowAnyMethod()
         .AllowCredentials();
     });
+    
+    // Dodatkowa polityka dla Azure Container Apps
+    options.AddPolicy("AllowAzure", policy =>
+    {
+        policy.SetIsOriginAllowed(origin => 
+            origin.Contains("azurecontainerapps.io") || 
+            origin.StartsWith("http://localhost") ||
+            origin.StartsWith("https://localhost"))
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials();
+    });
 });
 
 // ZMIANA: klient HTTP do lokalnego modelu ML zamiast Databricks
@@ -51,7 +63,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Use CORS middleware
-app.UseCors("AllowFrontend");
+app.UseCors("AllowAzure");
 
 app.MapControllers();
 app.Run();

@@ -32,8 +32,8 @@ export default function Home() {
   const [results, setResults] = useState<AssessmentItem[] | null>(null);
   const [advancedResults, setAdvancedResults] = useState<AdvancedHealthResult | null>(null);
   
-  // Używamy bezpośrednio Azure URL z nowym endpointem
-  const apiUrl = "https://myhealth-api.happysea-444138bb.eastus.azurecontainerapps.io/api/health/assess-advanced";
+  // Używamy zmiennej środowiskowej z fallbackiem na Azure URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://myhealth-api.happysea-444138bb.eastus.azurecontainerapps.io/api/health/assess-advanced";
 
   const handleSubmit = async (f: Features) => {
     setLoading(true);
