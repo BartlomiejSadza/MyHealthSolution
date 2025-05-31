@@ -39,11 +39,11 @@ namespace MyHealth.Api.Services
         private int CalculateLifestyleScore(HealthRequest request)
         {
             var score = 100;
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
-            var scc = request.DataframeSplit.Data[0][14].ToString();
-            var calc = request.DataframeSplit.Data[0][15].ToString();
-            var tue = Convert.ToDouble(request.DataframeSplit.Data[0][8]);
-            var faf = Convert.ToDouble(request.DataframeSplit.Data[0][7]);
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
+            var scc = request.DataFrame_Split.Data[0][14].ToString();
+            var calc = request.DataFrame_Split.Data[0][15].ToString();
+            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8]);
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
 
             // Palenie
             if (smoke == "yes") score -= 30;
@@ -69,10 +69,10 @@ namespace MyHealth.Api.Services
         private string EstimateStressLevel(HealthRequest request)
         {
             var stressFactors = 0;
-            var tue = Convert.ToDouble(request.DataframeSplit.Data[0][8]);
-            var faf = Convert.ToDouble(request.DataframeSplit.Data[0][7]);
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
-            var caec = request.DataframeSplit.Data[0][12].ToString();
+            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8]);
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
+            var caec = request.DataFrame_Split.Data[0][12].ToString();
 
             if (tue > 8) stressFactors += 2;
             if (faf < 2) stressFactors += 2;
@@ -91,10 +91,10 @@ namespace MyHealth.Api.Services
         private string EstimateSleepQuality(HealthRequest request)
         {
             var sleepFactors = 0;
-            var tue = Convert.ToDouble(request.DataframeSplit.Data[0][8]);
-            var faf = Convert.ToDouble(request.DataframeSplit.Data[0][7]);
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
-            var calc = request.DataframeSplit.Data[0][15].ToString();
+            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8]);
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
+            var calc = request.DataFrame_Split.Data[0][15].ToString();
 
             if (tue > 6) sleepFactors += 1;
             if (faf < 2) sleepFactors += 1;
@@ -113,9 +113,9 @@ namespace MyHealth.Api.Services
         private List<string> GenerateLifestyleRecommendations(HealthRequest request)
         {
             var recommendations = new List<string>();
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
-            var tue = Convert.ToDouble(request.DataframeSplit.Data[0][8]);
-            var calc = request.DataframeSplit.Data[0][15].ToString();
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
+            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8]);
+            var calc = request.DataFrame_Split.Data[0][15].ToString();
 
             if (smoke == "yes")
             {
@@ -144,8 +144,8 @@ namespace MyHealth.Api.Services
         // Risk Factor Analysis Methods
         private void AnalyzeWeightRisk(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var height = Convert.ToDouble(request.DataframeSplit.Data[0][2]);
-            var weight = Convert.ToDouble(request.DataframeSplit.Data[0][3]);
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]);
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]);
             var bmi = weight / (height * height);
 
             if (bmi < 18.5)
@@ -185,9 +185,9 @@ namespace MyHealth.Api.Services
 
         private void AnalyzeNutritionalRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var fcvc = Convert.ToDouble(request.DataframeSplit.Data[0][4]);
-            var ch2o = Convert.ToDouble(request.DataframeSplit.Data[0][6]);
-            var favc = request.DataframeSplit.Data[0][11].ToString();
+            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4]);
+            var ch2o = Convert.ToDouble(request.DataFrame_Split.Data[0][6]);
+            var favc = request.DataFrame_Split.Data[0][11].ToString();
 
             if (fcvc < 2)
             {
@@ -228,8 +228,8 @@ namespace MyHealth.Api.Services
 
         private void AnalyzeActivityRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var faf = Convert.ToDouble(request.DataframeSplit.Data[0][7]);
-            var tue = Convert.ToDouble(request.DataframeSplit.Data[0][8]);
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
+            var tue = Convert.ToDouble(request.DataFrame_Split.Data[0][8]);
 
             if (faf < 2)
             {
@@ -258,8 +258,8 @@ namespace MyHealth.Api.Services
 
         private void AnalyzeLifestyleRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
-            var calc = request.DataframeSplit.Data[0][15].ToString();
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
+            var calc = request.DataFrame_Split.Data[0][15].ToString();
 
             if (smoke == "yes")
             {
@@ -288,8 +288,8 @@ namespace MyHealth.Api.Services
 
         private void AnalyzeGeneticRisks(HealthRequest request, List<RiskFactor> riskFactors)
         {
-            var familyHistory = request.DataframeSplit.Data[0][10].ToString();
-            var age = Convert.ToInt32(request.DataframeSplit.Data[0][1]);
+            var familyHistory = request.DataFrame_Split.Data[0][10].ToString();
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
 
             if (familyHistory == "yes")
             {
@@ -318,11 +318,11 @@ namespace MyHealth.Api.Services
 
         private void AnalyzeProtectiveFactors(HealthRequest request, List<string> protectiveFactors)
         {
-            var faf = Convert.ToDouble(request.DataframeSplit.Data[0][7]);
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
-            var fcvc = Convert.ToDouble(request.DataframeSplit.Data[0][4]);
-            var scc = request.DataframeSplit.Data[0][14].ToString();
-            var calc = request.DataframeSplit.Data[0][15].ToString();
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
+            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4]);
+            var scc = request.DataFrame_Split.Data[0][14].ToString();
+            var calc = request.DataFrame_Split.Data[0][15].ToString();
 
             if (faf >= 3)
                 protectiveFactors.Add("Regularna aktywność fizyczna - silna ochrona przed chorobami przewlekłymi");
@@ -430,8 +430,8 @@ namespace MyHealth.Api.Services
         private List<Recommendation> GenerateDietaryRecommendations(HealthRequest request, string prediction)
         {
             var recommendations = new List<Recommendation>();
-            var height = Convert.ToDouble(request.DataframeSplit.Data[0][2]);
-            var weight = Convert.ToDouble(request.DataframeSplit.Data[0][3]);
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]);
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]);
             var bmi = weight / (height * height);
 
             if (bmi > 25)
@@ -475,7 +475,7 @@ namespace MyHealth.Api.Services
         private List<Recommendation> GenerateActivityRecommendations(HealthRequest request, string prediction)
         {
             var recommendations = new List<Recommendation>();
-            var faf = Convert.ToDouble(request.DataframeSplit.Data[0][7]);
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
 
             if (faf < 2)
             {
@@ -502,8 +502,8 @@ namespace MyHealth.Api.Services
         private List<Recommendation> GenerateMedicalRecommendations(HealthRequest request, string prediction)
         {
             var recommendations = new List<Recommendation>();
-            var age = Convert.ToInt32(request.DataframeSplit.Data[0][1]);
-            var bmi = Convert.ToDouble(request.DataframeSplit.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataframeSplit.Data[0][2]), 2);
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
+            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2]), 2);
 
             if (bmi > 30 || age > 50)
             {
@@ -554,8 +554,8 @@ namespace MyHealth.Api.Services
         private List<string> GenerateImmediateActions(HealthRequest request, string prediction)
         {
             var actions = new List<string>();
-            var bmi = Convert.ToDouble(request.DataframeSplit.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataframeSplit.Data[0][2]), 2);
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
+            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2]), 2);
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
 
             actions.Add("Zainstaluj aplikację do śledzenia kalorii i aktywności");
             actions.Add("Kup wagę i rozpocznij codzienne ważenie się");
@@ -575,7 +575,7 @@ namespace MyHealth.Api.Services
         private List<string> GenerateShortTermGoals(HealthRequest request, string prediction)
         {
             var goals = new List<string>();
-            var bmi = Convert.ToDouble(request.DataframeSplit.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataframeSplit.Data[0][2]), 2);
+            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2]), 2);
 
             if (bmi > 25)
                 goals.Add("Redukcja wagi o 2-4 kg w ciągu pierwszych 2 miesięcy");
@@ -591,7 +591,7 @@ namespace MyHealth.Api.Services
         private List<string> GenerateLongTermGoals(HealthRequest request, string prediction)
         {
             var goals = new List<string>();
-            var bmi = Convert.ToDouble(request.DataframeSplit.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataframeSplit.Data[0][2]), 2);
+            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2]), 2);
 
             if (bmi > 25)
                 goals.Add("Osiągnięcie i utrzymanie zdrowej wagi (BMI 18.5-24.9)");
@@ -660,10 +660,10 @@ namespace MyHealth.Api.Services
 
         private string GetHealthPrognosis(HealthRequest request, string prediction)
         {
-            var age = Convert.ToInt32(request.DataframeSplit.Data[0][1]);
-            var bmi = Convert.ToDouble(request.DataframeSplit.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataframeSplit.Data[0][2]), 2);
-            var faf = Convert.ToDouble(request.DataframeSplit.Data[0][7]);
-            var smoke = request.DataframeSplit.Data[0][13].ToString();
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
+            var bmi = Convert.ToDouble(request.DataFrame_Split.Data[0][3]) / Math.Pow(Convert.ToDouble(request.DataFrame_Split.Data[0][2]), 2);
+            var faf = Convert.ToDouble(request.DataFrame_Split.Data[0][7]);
+            var smoke = request.DataFrame_Split.Data[0][13].ToString();
 
             var prognosisFactors = 0;
             if (bmi >= 18.5 && bmi <= 24.9) prognosisFactors++;

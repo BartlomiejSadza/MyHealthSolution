@@ -110,9 +110,9 @@ export default function Home() {
       
       // Dla kompatybilności z istniejącym komponentem Results
       setResults([{
-        category: json.personalProfile?.bmiCategory || "Analiza",
-        observation: json.prediction || "Brak predykcji",
-        details: `BMI: ${json.personalProfile?.bmi || 'N/A'}, Wiek metaboliczny: ${json.personalProfile?.metabolicAge || 'N/A'} lat`
+        prediction: json.prediction || "Brak predykcji",
+        description: json.personalProfile?.bmiCategory || "Analiza",
+        observations: [`BMI: ${json.personalProfile?.bmi || 'N/A'}`, `Wiek metaboliczny: ${json.personalProfile?.metabolicAge || 'N/A'} lat`]
       }]);
       
     } catch (e) {

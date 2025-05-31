@@ -277,9 +277,9 @@ namespace MyHealth.Api.Services
         private List<string> GenerateSupplementRecommendations(HealthRequest request)
         {
             var supplements = new List<string>();
-            var age = Convert.ToInt32(request.DataframeSplit.Data[0][1]);
-            var gender = request.DataframeSplit.Data[0][9].ToString();
-            var fcvc = Convert.ToDouble(request.DataframeSplit.Data[0][4]);
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
+            var gender = request.DataFrame_Split.Data[0][9].ToString();
+            var fcvc = Convert.ToDouble(request.DataFrame_Split.Data[0][4]);
 
             // Podstawowe suplementy
             supplements.Add("Witamina D3 (2000-4000 IU dziennie)");
@@ -349,8 +349,8 @@ namespace MyHealth.Api.Services
 
         private int EstimateCaloriesBurned(double faf, HealthRequest request)
         {
-            var weight = Convert.ToDouble(request.DataframeSplit.Data[0][3]);
-            var age = Convert.ToInt32(request.DataframeSplit.Data[0][1]);
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]);
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
 
             // Bazowy współczynnik spalania kalorii na podstawie wieku i wagi
             var baseCaloriesPerHour = weight * (age > 40 ? 6 : 7);
@@ -364,7 +364,7 @@ namespace MyHealth.Api.Services
         private List<string> GenerateFitnessRecommendations(double faf, double tue, string mtrans, HealthRequest request)
         {
             var recommendations = new List<string>();
-            var age = Convert.ToInt32(request.DataframeSplit.Data[0][1]);
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
 
             if (faf < 2)
             {
@@ -399,9 +399,9 @@ namespace MyHealth.Api.Services
         private string GenerateExercisePlan(double faf, HealthRequest request)
         {
             var sb = new StringBuilder();
-            var age = Convert.ToInt32(request.DataframeSplit.Data[0][1]);
-            var height = Convert.ToDouble(request.DataframeSplit.Data[0][2]);
-            var weight = Convert.ToDouble(request.DataframeSplit.Data[0][3]);
+            var age = Convert.ToInt32(request.DataFrame_Split.Data[0][1]);
+            var height = Convert.ToDouble(request.DataFrame_Split.Data[0][2]);
+            var weight = Convert.ToDouble(request.DataFrame_Split.Data[0][3]);
 
             sb.AppendLine("**Spersonalizowany plan ćwiczeń:**");
             sb.AppendLine();

@@ -50,7 +50,7 @@ namespace MyHealth.Api.Controllers
                 var basicResult = await _svc.AssessAsync(req);
                 
                 // Następnie wykonaj zaawansowaną analizę
-                var advancedResult = _analyzer.AnalyzeHealth(req, basicResult.Predictions);
+                var advancedResult = _analyzer.AnalyzeHealth(req, basicResult.Assessments);
                 
                 return Ok(advancedResult);
             }
